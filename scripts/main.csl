@@ -1,0 +1,98 @@
+import "core:ao"
+
+// Manual shore fishing. Fishing spots are interactables placed directly in the
+// world; there is deliberately no boat or boat state in this game.
+Fishing_Spot :: class : Component {
+    cooldown_until: float;
+
+    ao_start :: method() {
+        cooldown_until = 0;
+    }
+
+    can_use :: method(player: Player) -> bool {
+        return get_time() >= cooldown_until;
+    }
+
+    on_interact :: method(player: Player) {
+        // Set the shared state first so prediction and reconciliation agree.
+        cooldown_until = get_time() + 2.5;
+        player.fish_caught += 1;
+    }
+}
+
+spawn_fishing_spot :: proc(position: v2) {
+    spot_entity := Scene.create_entity();
+    spot_entity.set_local_position(position);
+
+    // A small glow makes each manual fishing point easy to locate in-world.
+    glow := spot_entity.add_component(Light);
+    glow.color = v4{0.15, 0.65, 1.0, 1.0};
+    glow.intensity = 1.5;
+    glow.radii = v2{1.2, 1.2};
+
+    listener := spot_entity.add_component(Fishing_Spot);
+    interactable := spot_entity.add_component(Interactable);
+    interactable.radius = 1.8;
+    interactable.required_hold_time = 0.8;
+    interactable.set_text("Fish");
+    interactable.set_hold_text("Cast Line");
+    interactable.set_subtitle("Fishing Spot");
+    interactable.set_listener(listener);
+}
+
+// Game wide systems
+ao_before_scene_load :: proc() {
+    // Called before the scene is loaded (economy registration etc...)
+}
+
+ao_start :: proc() {
+    // Shoreline fishing positions; players walk up and hold interact.
+    spawn_fishing_spot(v2{-7, 2});
+    spawn_fishing_spot(v2{-2, 2});
+    spawn_fishing_spot(v2{3, 2});
+    spawn_fishing_spot(v2{8, 2});
+}
+
+ao_update :: proc(dt: float) {
+
+}
+
+ao_late_update :: proc(dt: float) {
+
+}
+
+// Per player state
+Player :: class : Player_Base {
+    fish_caught: s32 @ao_serialize;
+
+    ao_start :: method() {
+        // Basically on awake/join
+    }
+
+    ao_update :: method(dt: float) {
+        // Every frame
+    }
+
+    ao_late_update :: method(dt: float) {
+        // After physics runs, all UI must be rendered from here
+    }
+
+    ao_end :: method() {
+        // On destroy
+    }
+
+    ao_can_use_ability :: method(ability: Ability_Base) -> bool {
+        // Global ability callback for example don't allow use when dead
+        return true;
+    }
+
+    ao_can_use_interactable :: method(interactable: Interactable) -> bool {
+        // Global interactable callback
+        return true;
+    }
+
+    ao_on_state_sync :: method() {
+        // Called on the client after applying a state sync from the server
+        // Use this to override things for the local player only like name colors or lighting for example
+    }
+}
