@@ -1,0 +1,10 @@
+{
+    csl: true
+    projects:
+    [
+        {
+            name: "Fishing Session"
+            id: "6a4c013fb13a6795f0669cb2"
+        }
+    ]
+}
