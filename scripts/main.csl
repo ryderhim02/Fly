@@ -229,6 +229,7 @@ Sleepy_Event_Fish :: class : Component {
     event_active: bool;
     base_position: v2;
     base_scale: v2;
+    base_color: v4;
     sprite: Sprite_Renderer;
     glow: Light;
 
@@ -237,13 +238,18 @@ Sleepy_Event_Fish :: class : Component {
         base_position = entity.local_position;
         base_scale = entity.local_scale;
         sprite = entity.get_component(Sprite_Renderer);
+        if #alive(sprite) {
+            base_color = sprite.color;
+        } else {
+            base_color = v4{1.0, 1.0, 1.0, 1.0};
+        }
         glow = entity.add_component(Light);
         glow.color = v4{0.7, 0.32, 1.0, 1.0};
         glow.radii = v2{2.4, 1.6};
         glow.intensity = 0.0;
 
         if #alive(sprite) {
-            sprite.color = v4{1.0, 1.0, 1.0, 0.0};
+            sprite.color = base_color;
             sprite.layer = 1;
         }
     }
@@ -260,7 +266,7 @@ Sleepy_Event_Fish :: class : Component {
         if !event_active {
             entity.set_local_position(base_position);
             entity.set_local_scale(base_scale);
-            sprite.color = v4{1.0, 1.0, 1.0, 0.0};
+            sprite.color = base_color;
             glow.intensity = 0.0;
             return;
         }
