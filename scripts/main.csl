@@ -1,81 +1,115 @@
 import "core:ao"
 
-Sleepy_Event :: class : Component {
-    active_until: float @ao_serialize;
-    light: Light;
+CURRENCY :: "Sky Coins";
+
+Rift :: class : Component {
+    value: s64 @ao_serialize;
+    required_coins: s64 @ao_serialize;
+    label: string @ao_serialize;
+    interactable: Interactable;
+    base_scale: float;
 
     ao_start :: method() {
-        active_until = 0;
-        light = entity.add_component(Light);
-        light.color = v4{0.25, 0.15, 0.55, 1.0};
-        light.radii = v2{8.0, 8.0};
-        light.intensity = 0;
+        base_scale = 1.0;
+        interactable = entity.add_component(Interactable);
+        interactable.set_text(`Harvest {label}`);
+        interactable.radius = 2.2;
+        interactable.required_hold_time = 0.15;
+        interactable.set_listener(this);
     }
-
     ao_update :: method(dt: float) {
-        if active_until > get_time() {
-            light.intensity = 1.5;
-        } else {
-            light.intensity = 0;
-        }
+        // Soft pulse gives every destination a readable, animated silhouette.
+        pulse := base_scale + 0.08 * sin(get_time() * 2.5 + entity.id.(float) * 0.01);
+        entity.set_local_scale({pulse, pulse});
+    }
+    can_use :: method(t: Interactable, player: Player) -> bool { return Economy.get_balance(player, CURRENCY) >= required_coins; }
+    on_interact :: method(t: Interactable, player: Player) {
+        if Economy.get_balance(player, CURRENCY) < required_coins { return; }
+        player.energy = min(player.capacity, player.energy + value * player.resonance_multiplier());
+        player.last_action = `+{value * player.resonance_multiplier()} energy`;
     }
 }
 
-sleepy_event: Sleepy_Event;
+Hangar :: class : Component {
+    interactable: Interactable;
+    ao_start :: method() {
+        interactable = entity.add_component(Interactable);
+        interactable.set_text("Bank energy / Upgrade");
+        interactable.radius = 2.5;
+        interactable.set_listener(this);
+    }
+    on_interact :: method(t: Interactable, player: Player) { player.bank_and_upgrade(); }
+}
 
-// Game wide systems
 ao_before_scene_load :: proc() {
-    // Called before the scene is loaded (economy registration etc...)
+    Economy.register_currency(CURRENCY, get_asset(Texture_Asset, "$AO/ui/kit/Icons/coin/coin_icon.png"));
 }
 
 ao_start :: proc() {
-    event_entity := Scene.create_entity();
-    sleepy_event = event_entity.add_component(Sleepy_Event);
+    // Shared landmarks: clear silhouettes and generous spacing make the loop readable.
+    specs: [5]v2 = {{0, 4}, {10, 8}, {20, 3}, {30, 10}, {42, 4}};
+    values: [5]s64 = {1, 4, 18, 90, 500};
+    gates: [5]s64 = {0, 1000, 7500, 60000, 500000};
+    names: [5]string = {"Meadow Spark", "Canopy Bloom", "Ember Core", "Moon Relic", "Astral Heart"};
+    for i: 0..4 {
+        e := Scene.create_entity(); e.set_local_position(specs[i]);
+        s := e.add_component(Sprite_Renderer); s.set_texture(get_asset(Texture_Asset, "$AO/ui/kit/Icons/coin/coin_icon_b.png")); s.color = {0.25 + i.(float) * 0.15, 0.9 - i.(float) * 0.1, 1, 1}; s.layer = 0;
+        r := e.add_component(Rift); r.value = values[i]; r.required_coins = gates[i]; r.label = names[i];
+    }
+    h := Scene.create_entity(); h.set_local_position({-5, -2});
+    hs := h.add_component(Sprite_Renderer); hs.set_texture(get_asset(Texture_Asset, "$AO/new/Player Stat Window/upgrade_border.png")); h.set_local_scale({3, 3});
+    h.add_component(Hangar);
 }
 
-admin_sleepy_event :: proc(player: Player) {
-    sleepy_event.active_until = get_time() + 30.0;
-    Notifier.notify(player, "Sleepy event started for 30 seconds!");
-} @chat_command @owner
-
-ao_update :: proc(dt: float) {
-
-}
-
-ao_late_update :: proc(dt: float) {
-
-}
-
-// Per player state
 Player :: class : Player_Base {
+    energy: s64; capacity: s64; wing_level: s64; jet_level: s64; resonance_level: s64; mastery: s64;
+    last_action: string; hud_open: bool; first_rift: Entity;
+
     ao_start :: method() {
-        // Basically on awake/join
+        capacity = Save.get_int(this, "sky_capacity", 50);
+        wing_level = Save.get_int(this, "sky_wings", 0); jet_level = Save.get_int(this, "sky_jet", 0);
+        resonance_level = Save.get_int(this, "sky_resonance", 0); mastery = Save.get_int(this, "sky_mastery", 0);
+        entity.set_local_position({-5, -4}); hud_open = true; last_action = "Find a glowing rift";
+        for rift: component_iterator(Rift) { first_rift = rift.entity; break; }
     }
-
-    ao_update :: method(dt: float) {
-        // Every frame
+    ao_update :: method(dt: float) { }
+    resonance_multiplier :: method() -> s64 { return 1 + resonance_level + mastery; }
+    next_zone_goal :: method() -> s64 {
+        if mastery < 1 && wing_level + jet_level + resonance_level < 3 { return 1000; }
+        if mastery < 1 && wing_level + jet_level + resonance_level < 6 { return 7500; }
+        if mastery < 1 { return 60000; }
+        return 500000;
     }
-
+    next_cost :: method() -> s64 { return 50 * (1 << min(wing_level + jet_level + resonance_level, 6)); }
+    bank_and_upgrade :: method() {
+        if energy > 0 { Economy.deposit_currency(this, CURRENCY, energy * 2); energy = 0; last_action = "Energy banked!"; }
+        cost := next_cost();
+        if Economy.can_withdraw_currency(this, CURRENCY, cost) {
+            Economy.withdraw_currency(this, CURRENCY, cost);
+            if wing_level <= jet_level && wing_level <= resonance_level { wing_level += 1; capacity += 25; last_action = "Wing Span upgraded"; }
+            else if jet_level <= resonance_level { jet_level += 1; last_action = "Jetstream upgraded"; }
+            else { resonance_level += 1; last_action = "Resonance upgraded"; }
+        }
+        Save.set_int(this, "sky_capacity", capacity); Save.set_int(this, "sky_wings", wing_level); Save.set_int(this, "sky_jet", jet_level); Save.set_int(this, "sky_resonance", resonance_level);
+    }
     ao_late_update :: method(dt: float) {
-        // After physics runs, all UI must be rendered from here
+        if !is_local_or_server() { return; }
+        ts := UI.default_text_settings(); ts.size = 0.22; ts.do_outline = true; ts.outline_thickness = 2;
+        UI.text(Rect.{v2{-4.5, 3.2}, v2{-4.5, 3.2}}.grow(3.0, 0.16, 0.1, 0.16), ts, "ENERGY % / %    COINS %", {energy, capacity, Economy.get_balance(this, CURRENCY)});
+        UI.text(Rect.{v2{-4.5, 2.8}, v2{-4.5, 2.8}}.grow(3.0, 0.16, 0.1, 0.16), ts, "NEXT UPGRADE: %    %", {next_cost(), last_action});
+        UI.text(Rect.{v2{-4.5, 2.4}, v2{-4.5, 2.4}}.grow(3.0, 0.16, 0.1, 0.16), ts, "WINGS %  JETSTREAM %  RESONANCE %  MASTERY %", {wing_level, jet_level, resonance_level, mastery});
+        UI.text(Rect.{v2{-4.5, 2.0}, v2{-4.5, 2.0}}.grow(3.0, 0.16, 0.1, 0.16), ts, "NEXT RIFT: % COINS", {next_zone_goal()});
+        if first_rift != null && energy == 0 {
+            options := Tutorial_Arrow.default_options();
+            Tutorial_Arrow.draw(this, first_rift, options);
+        }
     }
-
-    ao_end :: method() {
-        // On destroy
-    }
-
-    ao_can_use_ability :: method(ability: Ability_Base) -> bool {
-        // Global ability callback for example don't allow use when dead
-        return true;
-    }
-
-    ao_can_use_interactable :: method(interactable: Interactable) -> bool {
-        // Global interactable callback
-        return true;
-    }
-
-    ao_on_state_sync :: method() {
-        // Called on the client after applying a state sync from the server
-        // Use this to override things for the local player only like name colors or lighting for example
-    }
+    ao_end :: method() { Save.set_int(this, "sky_capacity", capacity); Save.set_int(this, "sky_wings", wing_level); Save.set_int(this, "sky_jet", jet_level); Save.set_int(this, "sky_resonance", resonance_level); }
 }
+
+sky_prestige :: proc(player: Player) {
+    if Economy.get_balance(player, CURRENCY) < 100000 { player.last_action = "Prestige needs 100000 coins"; return; }
+    Economy.withdraw_currency(player, CURRENCY, 100000);
+    player.mastery += 1; player.wing_level = 0; player.jet_level = 0; player.resonance_level = 0; player.capacity = 50;
+    Save.set_int(player, "sky_mastery", player.mastery); player.last_action = `MASTERY {player.mastery}: earnings permanently increased`;
+} @chat_command
