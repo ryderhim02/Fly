@@ -1,5 +1,10 @@
 import "core:ao"
 
+SLEEPY_EVENT_DURATION :: 180.0;
+SLEEPY_MUTATION_CHANCE :: 30;
+
+g_sleepy_fish_texture: Texture_Asset;
+
 // Manual shore fishing and boat travel.
 Boat_Travel :: class : Component {
     destination: v2;
@@ -21,6 +26,7 @@ Boat_Travel :: class : Component {
 spawn_boat :: proc(position: v2) {
     boat_entity := Scene.create_entity();
     boat_entity.set_local_position(position);
+    boat_entity.set_name("Far_Shore_Boat");
 
     marker := boat_entity.add_component(Light);
     marker.color = v4{0.1, 0.45, 1.0, 1.0};
@@ -36,11 +42,88 @@ spawn_boat :: proc(position: v2) {
     interactable.set_subtitle("Travel to the far shore");
     interactable.set_listener(listener);
 }
-Fishing_Spot :: class : Component {
-    cooldown_until: float;
+
+Sleepy_Catch_Visual :: class : Component {
+    age: float;
+    origin: v2;
 
     ao_start :: method() {
-        cooldown_until = 0;
+        age = 0.0;
+        origin = entity.local_position;
+    }
+
+    ao_update :: method(dt: float) {
+        age += dt;
+        if age >= 2.0 {
+            entity.destroy();
+            return;
+        }
+
+        entity.set_local_position(origin + v2{0, age * 0.8});
+        pulse := 0.9 + sin(age * 8.0) * 0.08;
+        entity.set_local_scale(v2{pulse, pulse});
+    }
+
+    ao_late_update :: method(dt: float) {
+        UI.push_world_draw_context();
+        defer UI.pop_draw_context();
+
+        position := entity.world_position + v2{0, 1.1};
+        UI.push_z(position.y);
+        defer UI.pop_z();
+
+        alpha := 1.0 - clamp(age / 2.0, 0.0, 1.0);
+        ts := UI.default_text_settings();
+        ts.size = 0.38;
+        ts.color = v4{0.9, 0.76, 1.0, alpha};
+        ts.outline_color = v4{0.16, 0.05, 0.28, alpha};
+        UI.text(Rect{position, position}.grow(0.45), ts, "Zzz");
+    }
+}
+
+spawn_sleepy_catch_visual :: proc(position: v2) {
+    caught_fish := Scene.create_entity();
+    caught_fish.set_local_position(position + v2{0, 0.5});
+    caught_fish.set_local_scale(v2{0.9, 0.9});
+    caught_fish.set_name("Sleepy_Mutated_Fish");
+
+    sprite := caught_fish.add_component(Sprite_Renderer);
+    sprite.set_texture(g_sleepy_fish_texture);
+    sprite.layer = 2;
+    sprite.color = v4{0.78, 0.56, 1.0, 1.0};
+
+    glow := caught_fish.add_component(Light);
+    glow.color = v4{0.65, 0.32, 1.0, 1.0};
+    glow.radii = v2{1.1, 0.9};
+    glow.intensity = 1.6;
+
+    caught_fish.add_component(Sleepy_Catch_Visual);
+}
+
+Fishing_Spot :: class : Component {
+    cooldown_until: float;
+    sleepy_event_active: bool;
+    glow: Light;
+
+    ao_start :: method() {
+        cooldown_until = 0.0;
+        sleepy_event_active = false;
+        glow = entity.get_component(Light);
+    }
+
+    set_sleepy_event_active :: method(active: bool) {
+        sleepy_event_active = active;
+        if !#alive(glow) {
+            return;
+        }
+
+        if sleepy_event_active {
+            glow.color = v4{0.72, 0.36, 1.0, 1.0};
+            glow.intensity = 2.5;
+        } else {
+            glow.color = v4{0.15, 0.65, 1.0, 1.0};
+            glow.intensity = 1.5;
+        }
     }
 
     can_use :: method(player: Player) -> bool {
@@ -48,15 +131,31 @@ Fishing_Spot :: class : Component {
     }
 
     on_interact :: method(player: Player) {
-        // Set the shared state first so prediction and reconciliation agree.
+        // Set shared state first so prediction and reconciliation agree.
         cooldown_until = get_time() + 2.5;
         player.fish_caught += 1;
+        player.last_fish_was_sleepy = false;
+
+        if !sleepy_event_active {
+            return;
+        }
+
+        rng := rng_root_seed() + get_frame_number();
+        mutation_roll := rng_range_int(ref rng, 1, 100);
+        if mutation_roll > SLEEPY_MUTATION_CHANCE {
+            return;
+        }
+
+        player.sleepy_fish_caught += 1;
+        player.last_fish_was_sleepy = true;
+        spawn_sleepy_catch_visual(entity.world_position);
     }
 }
 
-spawn_fishing_spot :: proc(position: v2) {
+spawn_fishing_spot :: proc(position: v2, number: s32) {
     spot_entity := Scene.create_entity();
     spot_entity.set_local_position(position);
+    spot_entity.set_name(`Fishing_Spot_{number}`);
 
     // A small glow makes each manual fishing point easy to locate in-world.
     glow := spot_entity.add_component(Light);
@@ -74,18 +173,210 @@ spawn_fishing_spot :: proc(position: v2) {
     interactable.set_listener(listener);
 }
 
+Sleepy_Rain_Drop :: class : Component {
+    spawn_position: v2;
+    drift_phase: float;
+    fall_speed: float;
+    event_active: bool;
+
+    ao_start :: method() {
+        event_active = false;
+    }
+
+    set_event_active :: method(active: bool) {
+        if !active {
+            entity.set_local_position(spawn_position);
+        }
+        event_active = active;
+    }
+
+    ao_update :: method(dt: float) {
+        if !event_active {
+            return;
+        }
+
+        position := entity.local_position;
+        position.y -= fall_speed * dt;
+        position.x = spawn_position.x + sin(get_time() * 1.8 + drift_phase) * 0.18;
+        if position.y < -7.0 {
+            position.y = 8.0;
+        }
+        entity.set_local_position(position);
+    }
+
+    ao_late_update :: method(dt: float) {
+        if !event_active {
+            return;
+        }
+
+        UI.push_world_draw_context();
+        defer UI.pop_draw_context();
+
+        position := entity.world_position;
+        UI.push_z(position.y);
+        defer UI.pop_z();
+
+        ts := UI.default_text_settings();
+        ts.size = 0.28;
+        shimmer := 0.78 + sin(get_time() * 4.0 + drift_phase) * 0.22;
+        ts.color = v4{0.87, 0.75, 1.0, shimmer};
+        ts.outline_color = v4{0.15, 0.04, 0.26, shimmer};
+        UI.text(Rect{position, position}.grow(0.33), ts, "Zzz");
+    }
+}
+
+Sleepy_Event_Fish :: class : Component {
+    event_active: bool;
+    base_position: v2;
+    base_scale: v2;
+    sprite: Sprite_Renderer;
+    glow: Light;
+
+    ao_start :: method() {
+        event_active = false;
+        base_position = entity.local_position;
+        base_scale = entity.local_scale;
+        sprite = entity.get_component(Sprite_Renderer);
+        glow = entity.add_component(Light);
+        glow.color = v4{0.7, 0.32, 1.0, 1.0};
+        glow.radii = v2{2.4, 1.6};
+        glow.intensity = 0.0;
+
+        if #alive(sprite) {
+            sprite.color = v4{1.0, 1.0, 1.0, 0.0};
+            sprite.layer = 1;
+        }
+    }
+
+    set_event_active :: method(active: bool) {
+        event_active = active;
+    }
+
+    ao_update :: method(dt: float) {
+        if !#alive(sprite) {
+            return;
+        }
+
+        if !event_active {
+            entity.set_local_position(base_position);
+            entity.set_local_scale(base_scale);
+            sprite.color = v4{1.0, 1.0, 1.0, 0.0};
+            glow.intensity = 0.0;
+            return;
+        }
+
+        bob := sin(get_time() * 1.6) * 0.14;
+        pulse := 1.0 + sin(get_time() * 2.1) * 0.035;
+        entity.set_local_position(base_position + v2{0, bob});
+        entity.set_local_scale(base_scale * pulse);
+        sprite.color = v4{0.8, 0.6, 1.0, 1.0};
+        glow.intensity = 2.6 + sin(get_time() * 2.1) * 0.35;
+    }
+
+    ao_late_update :: method(dt: float) {
+        if !event_active {
+            return;
+        }
+
+        UI.push_world_draw_context();
+        defer UI.pop_draw_context();
+
+        position := entity.world_position + v2{0, 1.7};
+        UI.push_z(position.y);
+        defer UI.pop_z();
+
+        ts := UI.default_text_settings();
+        ts.size = 0.5;
+        ts.color = v4{0.91, 0.78, 1.0, 1.0};
+        ts.outline_color = v4{0.14, 0.04, 0.26, 1.0};
+        UI.text(Rect{position, position}.grow(0.6), ts, "Zzz");
+    }
+}
+
+Sleepy_Event_Controller :: class : Component {
+    event_active: bool;
+    event_end_time: float;
+
+    ao_start :: method() {
+        event_active = false;
+        event_end_time = 0.0;
+        refresh_event_presentation();
+    }
+
+    activate :: method() {
+        event_active = true;
+        event_end_time = get_time() + SLEEPY_EVENT_DURATION;
+        refresh_event_presentation();
+    }
+
+    refresh_event_presentation :: method() {
+        for fish: component_iterator(Sleepy_Event_Fish) {
+            fish.set_event_active(event_active);
+        }
+
+        for rain_drop: component_iterator(Sleepy_Rain_Drop) {
+            rain_drop.set_event_active(event_active);
+        }
+
+        for fishing_spot: component_iterator(Fishing_Spot) {
+            fishing_spot.set_sleepy_event_active(event_active);
+        }
+    }
+
+    ao_update :: method(dt: float) {
+        if event_active && get_time() >= event_end_time {
+            event_active = false;
+        }
+        refresh_event_presentation();
+    }
+
+    ao_on_state_sync :: method() {
+        refresh_event_presentation();
+    }
+}
+
+spawn_sleepy_rain :: proc() {
+    for i: 0..<28 {
+        drop := Scene.create_entity();
+        drop.set_name(`Sleepy_Zzz_Rain_{i}`);
+
+        x := -10.0 + i.(float) * 0.74;
+        y := 8.0 - i.(float) * 0.31;
+        drop.set_local_position(v2{x, y});
+
+        rain := drop.add_component(Sleepy_Rain_Drop);
+        rain.spawn_position = v2{x, y};
+        rain.drift_phase = i.(float) * 0.57;
+        rain.fall_speed = 2.1 + i.(float) * 0.035;
+    }
+}
+
+admin_sleepy_event :: proc(player: Player) {
+    for controller: component_iterator(Sleepy_Event_Controller) {
+        controller.activate();
+        return;
+    }
+} @chat_command @owner
+
 // Game wide systems
 ao_before_scene_load :: proc() {
     // Called before the scene is loaded (economy registration etc...)
 }
 
 ao_start :: proc() {
+    g_sleepy_fish_texture = get_asset(Texture_Asset, "fish-clown_fish_2253a3.png");
+
+    event_manager := Scene.create_entity();
+    event_manager.set_name("Sleepy_Event_Manager");
+    event_manager.add_component(Sleepy_Event_Controller);
+
+    spawn_sleepy_rain();
     spawn_boat(v2{0, 5});
     // Shoreline fishing positions; players walk up and hold interact.
-    spawn_fishing_spot(v2{-7, 2});
-    spawn_fishing_spot(v2{-2, 2});
-    spawn_fishing_spot(v2{3, 2});
-    spawn_fishing_spot(v2{8, 2});
+    spawn_fishing_spot(v2{-7, 2}, 1);
+    spawn_fishing_spot(v2{-2, 2}, 2);
+    spawn_fishing_spot(v2{3, 2}, 3);
+    spawn_fishing_spot(v2{8, 2}, 4);
 }
 
 ao_update :: proc(dt: float) {
@@ -99,6 +390,8 @@ ao_late_update :: proc(dt: float) {
 // Per player state
 Player :: class : Player_Base {
     fish_caught: s32 @ao_serialize;
+    sleepy_fish_caught: s32 @ao_serialize;
+    last_fish_was_sleepy: bool @ao_serialize;
 
     ao_start :: method() {
         // Basically on awake/join

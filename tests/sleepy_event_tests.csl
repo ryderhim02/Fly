@@ -1,0 +1,11 @@
+test_sleepy_event_activation :: proc() {
+    Test.assert_entity_exists("sleeping landmark exists", "Sleeping_Event_Fish");
+    Test.assert_entity_count("zz rain is prepared", "Sleepy_Rain_Drop", 28);
+
+    Test.run_admin_command("admin_sleepy_event");
+    Test.wait_frames(4);
+
+    Test.assert_component_bool("sleepy event becomes active", "Sleepy_Event_Manager", "Sleepy_Event_Controller.event_active", true);
+    Test.wait_seconds(10.0);
+    Test.screenshot("sleepy_event_active");
+}
