@@ -1,5 +1,109 @@
 import "core:ao"
 
+TACO_EVENT_DURATION :: 60.0;
+TACO_MUTATION_CHANCE_PERCENT :: 1;
+
+taco_event_system: Taco_Event;
+
+Taco_Rain_Drop :: class : Component {
+    fall_speed: float;
+
+    ao_start :: method() {
+        fall_speed = 8.0;
+    }
+
+    ao_update :: method(dt: float) {
+        entity.add_local_position(v2{0, -fall_speed * dt});
+        if entity.local_position.y < -8 {
+            entity.destroy();
+            return;
+        }
+    }
+}
+
+Taco_Mutation_Catch :: class : Component {
+    expires_at: float;
+
+    ao_start :: method() {
+        expires_at = get_time() + 2.5;
+    }
+
+    ao_update :: method(dt: float) {
+        entity.add_local_position(v2{0, 1.4 * dt});
+        if get_time() >= expires_at {
+            entity.destroy();
+            return;
+        }
+    }
+}
+
+Taco_Event :: class : Component {
+    active_until: float @ao_serialize;
+    next_rain_time: float @ao_serialize;
+    rng: u64 @ao_serialize;
+
+    ao_start :: method() {
+        active_until = 0;
+        next_rain_time = 0;
+        rng = rng_root_seed();
+    }
+
+    is_active :: method() -> bool {
+        return get_time() < active_until;
+    }
+
+    start_event :: method() {
+        active_until = get_time() + TACO_EVENT_DURATION;
+        next_rain_time = get_time();
+    }
+
+    ao_update :: method(dt: float) {
+        if !is_active() || get_time() < next_rain_time {
+            return;
+        }
+
+        next_rain_time = get_time() + 0.16;
+        spawn_rain_taco(rng_range_float(ref rng, -12, 12), rng_range_float(ref rng, 8, 13));
+    }
+}
+
+spawn_rain_taco :: proc(x: float, y: float) {
+    taco := Scene.create_entity();
+    taco.set_local_position(v2{x, y});
+    taco.set_local_scale(v2{0.75, 0.75});
+    taco.set_local_rotation(rng_range_float(ref taco_event_system.rng, -25, 25));
+
+    sprite := taco.add_component(Sprite_Renderer);
+    sprite.set_texture(get_asset(Texture_Asset, "event/taco.png"));
+    sprite.layer = 5;
+    taco.add_component(Taco_Rain_Drop);
+}
+
+spawn_taco_mutation_fish :: proc(position: v2) {
+    fish := Scene.create_entity();
+    fish.set_local_position(position + v2{0, 1.0});
+    fish.set_local_scale(v2{1.25, 1.25});
+
+    fish_sprite := fish.add_component(Sprite_Renderer);
+    fish_sprite.set_texture(get_asset(Texture_Asset, "event/fish.png"));
+    fish_sprite.layer = 6;
+
+    taco := Scene.create_entity();
+    taco.set_parent(fish, false);
+    taco.set_local_position(v2{-0.25, 0.68});
+    taco.set_local_scale(v2{0.48, 0.48});
+    taco_sprite := taco.add_component(Sprite_Renderer);
+    taco_sprite.set_texture(get_asset(Texture_Asset, "event/taco.png"));
+    taco_sprite.layer = 7;
+
+    fish.add_component(Taco_Mutation_Catch);
+}
+
+taco_event :: proc(player: Player) {
+    taco_event_system.start_event();
+    Notifier.notify("Taco event started! Taco rain is falling for one minute.");
+} @chat_command @owner
+
 // Manual shore fishing and boat travel.
 Boat_Travel :: class : Component {
     destination: v2;
@@ -38,9 +142,11 @@ spawn_boat :: proc(position: v2) {
 }
 Fishing_Spot :: class : Component {
     cooldown_until: float;
+    rng: u64;
 
     ao_start :: method() {
         cooldown_until = 0;
+        rng = rng_root_seed();
     }
 
     can_use :: method(player: Player) -> bool {
@@ -51,6 +157,12 @@ Fishing_Spot :: class : Component {
         // Set the shared state first so prediction and reconciliation agree.
         cooldown_until = get_time() + 2.5;
         player.fish_caught += 1;
+
+        if taco_event_system.is_active() && rng_range_int(ref rng, 1, 100) <= TACO_MUTATION_CHANCE_PERCENT {
+            player.taco_mutation_fish_caught += 1;
+            spawn_taco_mutation_fish(player.entity.world_position);
+            Notifier.notify(player, "Taco Mutation caught!");
+        }
     }
 }
 
@@ -80,6 +192,8 @@ ao_before_scene_load :: proc() {
 }
 
 ao_start :: proc() {
+    event_entity := Scene.create_entity();
+    taco_event_system = event_entity.add_component(Taco_Event);
     spawn_boat(v2{0, 5});
     // Shoreline fishing positions; players walk up and hold interact.
     spawn_fishing_spot(v2{-7, 2});
@@ -99,6 +213,7 @@ ao_late_update :: proc(dt: float) {
 // Per player state
 Player :: class : Player_Base {
     fish_caught: s32 @ao_serialize;
+    taco_mutation_fish_caught: s32 @ao_serialize;
 
     ao_start :: method() {
         // Basically on awake/join
