@@ -1,0 +1,288 @@
+// ============================================================
+// Sleepy Event - cross-server via Save game ints
+// Keys are global across all servers
+// ============================================================
+
+SLEEPY_EVENT_ACTIVE_KEY :: "sleepy_event_active";
+SLEEPY_EVENT_END_NS_KEY :: "sleepy_event_end_ns";
+SLEEPY_EVENT_DURATION_DEFAULT :: 300;
+SLEEPY_MUTATION_CHANCE :: 0.35;
+
+set_game_int_absolute :: proc(key: string, value: s64) {
+    cur := Save.get_game_int(key, 0);
+    diff := value - cur;
+    if diff != 0 {
+        Save.increment_game_int(key, diff, true);
+    }
+}
+
+is_sleepy_event_active :: proc() -> bool {
+    active := Save.get_game_int(SLEEPY_EVENT_ACTIVE_KEY, 0);
+    if active != 1 {
+        return false;
+    }
+    end_ns := Save.get_game_int(SLEEPY_EVENT_END_NS_KEY, 0);
+    if end_ns == 0 {
+        return true;
+    }
+    now_ns := get_nanoseconds_since_epoch();
+    if now_ns >= end_ns {
+        return false;
+    }
+    return true;
+}
+
+get_sleepy_event_remaining_seconds :: proc() -> float {
+    if !is_sleepy_event_active() {
+        return 0;
+    }
+    end_ns := Save.get_game_int(SLEEPY_EVENT_END_NS_KEY, 0);
+    if end_ns == 0 {
+        return 9999;
+    }
+    now_ns := get_nanoseconds_since_epoch();
+    remaining_ns := end_ns - now_ns;
+    if remaining_ns < 0 {
+        return 0;
+    }
+    return remaining_ns.(float) / 1000000000.0;
+}
+
+start_sleepy_event :: proc(duration_seconds: int = SLEEPY_EVENT_DURATION_DEFAULT) {
+    if duration_seconds < 5 {
+        duration_seconds = 5;
+    }
+    now_ns := get_nanoseconds_since_epoch();
+    end_ns := now_ns + duration_seconds.(s64) * 1000000000;
+    set_game_int_absolute(SLEEPY_EVENT_ACTIVE_KEY, 1);
+    set_game_int_absolute(SLEEPY_EVENT_END_NS_KEY, end_ns);
+    Chat.server_send_message("Sleepy Event started! All servers are now sleepy for {duration_seconds}s - catch Sleepy fish with Zzz!");
+    Notifier.notify("Sleepy Event ACTIVE across all servers! Fish can now be Sleepy (Zzz)!");
+    log_info("Sleepy Event STARTED for %s by admin. Ends at %s", {duration_seconds, end_ns});
+}
+
+stop_sleepy_event :: proc() {
+    set_game_int_absolute(SLEEPY_EVENT_ACTIVE_KEY, 0);
+    set_game_int_absolute(SLEEPY_EVENT_END_NS_KEY, 0);
+    Chat.server_send_message("Sleepy Event ended. Sweet dreams are over!");
+    Notifier.notify("Sleepy Event ended.");
+    log_info("Sleepy Event STOPPED", {});
+}
+
+sleepy_event_tick :: proc(dt: float) {
+    active := Save.get_game_int(SLEEPY_EVENT_ACTIVE_KEY, 0);
+    if active != 1 {
+        return;
+    }
+    end_ns := Save.get_game_int(SLEEPY_EVENT_END_NS_KEY, 0);
+    if end_ns == 0 {
+        return;
+    }
+    now_ns := get_nanoseconds_since_epoch();
+    if now_ns >= end_ns {
+        set_game_int_absolute(SLEEPY_EVENT_ACTIVE_KEY, 0);
+        set_game_int_absolute(SLEEPY_EVENT_END_NS_KEY, 0);
+    }
+}
+
+// ============================================================
+// Mutation roll + Zzz visual - letters next to fish say Zzz
+// ============================================================
+
+try_roll_sleepy_mutation :: proc(player: Player) -> bool {
+    if !is_sleepy_event_active() {
+        return false;
+    }
+    rng: u64 = rng_root_seed() + player.entity.id + get_frame_number() + (get_time() * 1000).(u64);
+    roll := rng_range_float(ref rng, 0, 1);
+    return roll < SLEEPY_MUTATION_CHANCE;
+}
+
+spawn_sleepy_zzz_visual :: proc(position: v2) {
+    e := Scene.create_entity();
+    e.set_local_position(position);
+    viz := e.add_component(Sleepy_Zzz_Visual);
+    viz.base_position = position;
+}
+
+Sleepy_Zzz_Visual :: class : Component {
+    age: float @ao_serialize;
+    duration: float @ao_serialize;
+    base_position: v2 @ao_serialize;
+    bob_phase: float @ao_serialize;
+
+    ao_start :: method() {
+        duration = 2.2;
+        age = 0;
+        rng: u64 = rng_root_seed() + entity.id;
+        bob_phase = rng_range_float(ref rng, 0, 6.28);
+    }
+
+    ao_update :: method(dt: float) {
+        age += dt;
+        if age >= duration {
+            entity.destroy();
+            return;
+        }
+        entity.add_local_position(v2{0, 0.35 * dt});
+        entity.add_local_position(v2{sin(age * 2.0 + bob_phase) * 0.08 * dt, 0});
+    }
+
+    ao_late_update :: method(dt: float) {
+        t := clamp(age / duration, 0, 1);
+        alpha := 1.0 - t * t;
+
+        UI.begin_world_space_ui(entity);
+        defer UI.end_world_space_ui();
+
+        UI.push_z(entity.world_position.y + 2.0);
+        defer UI.pop_z();
+
+        // Draw three Zzz letters with individual bob and sizes
+        // Z
+        p1 := entity.world_position + v2{-0.38, 0.10 + sin(age*2.4 + 0.0)*0.08};
+        r1 := Rect{p1, p1}.grow(0.5, 0.5, 0.5, 0.5);
+        ts1 := UI.default_text_settings();
+        ts1.size = 0.48;
+        ts1.color = v4{0.72, 0.78, 1.0, alpha};
+        ts1.outline_color = v4{0.12, 0.12, 0.22, alpha};
+        ts1.do_outline = true;
+        ts1.outline_thickness = 2.5;
+        ts1.halign = .CENTER;
+        ts1.valign = .CENTER;
+        UI.text(r1, ts1, "Z");
+
+        // z
+        p2 := entity.world_position + v2{0.02, 0.28 + sin(age*2.4 + 1.1)*0.08};
+        r2 := Rect{p2, p2}.grow(0.5, 0.5, 0.5, 0.5);
+        ts2 := UI.default_text_settings();
+        ts2.size = 0.36;
+        ts2.color = v4{0.82, 0.86, 1.0, alpha * 0.95};
+        ts2.outline_color = v4{0.12, 0.12, 0.22, alpha * 0.95};
+        ts2.do_outline = true;
+        ts2.outline_thickness = 2.5;
+        ts2.halign = .CENTER;
+        ts2.valign = .CENTER;
+        UI.text(r2, ts2, "z");
+
+        // z small
+        p3 := entity.world_position + v2{0.38, 0.45 + sin(age*2.4 + 2.2)*0.08};
+        r3 := Rect{p3, p3}.grow(0.5, 0.5, 0.5, 0.5);
+        ts3 := UI.default_text_settings();
+        ts3.size = 0.28;
+        ts3.color = v4{0.92, 0.94, 1.0, alpha * 0.9};
+        ts3.outline_color = v4{0.12, 0.12, 0.22, alpha * 0.9};
+        ts3.do_outline = true;
+        ts3.outline_thickness = 2.5;
+        ts3.halign = .CENTER;
+        ts3.valign = .CENTER;
+        UI.text(r3, ts3, "z");
+
+        // subtle bubble behind
+        mid := entity.world_position;
+        bg_rect := Rect{mid, mid}.grow(0.22, 0.62, 0.22, 0.62).offset(0.02, 0.28);
+        UI.push_layer_relative(-1);
+        UI.quad(bg_rect, core_globals.white_sprite, v4{0.15, 0.16, 0.35, alpha * 0.18});
+        UI.pop_layer();
+    }
+}
+
+// ============================================================
+// Global controller - ticks cross-server state
+// ============================================================
+
+Sleepy_Event_Controller :: class : Component {
+    poll_timer: float @ao_serialize;
+    was_active: bool @ao_serialize;
+
+    ao_start :: method() {
+        poll_timer = 0;
+        was_active = false;
+    }
+
+    ao_update :: method(dt: float) {
+        sleepy_event_tick(dt);
+        poll_timer += dt;
+        if poll_timer >= 0.25 {
+            poll_timer = 0;
+            active := is_sleepy_event_active();
+            if active && !was_active {
+                was_active = true;
+            }
+            if !active && was_active {
+                was_active = false;
+            }
+        }
+    }
+
+    ao_late_update :: method(dt: float) {
+        active := is_sleepy_event_active();
+        if !active {
+            return;
+        }
+        UI.push_screen_draw_context();
+        defer UI.pop_draw_context();
+        screen := UI.get_screen_rect();
+        top_strip := screen.top_rect().grow_bottom(6.0);
+        UI.push_layer(50);
+        UI.quad(top_strip, core_globals.white_sprite, v4{0.25, 0.30, 0.65, 0.10});
+        UI.pop_layer();
+    }
+}
+
+// ============================================================
+// Admin chat commands - write Save game ints so all servers see it
+// ============================================================
+
+admin_sleepy_event :: proc(player: Player, action: string = "status", duration: int = 300) {
+    act := to_lower(action);
+    if act == "start" || act == "on" || act == "begin" {
+        d := duration;
+        if d <= 0 { d = SLEEPY_EVENT_DURATION_DEFAULT; }
+        start_sleepy_event(d);
+        Notifier.notify(player, "Sleepy Event STARTED for {d}s across ALL servers!");
+    } else if act == "stop" || act == "off" || act == "end" || act == "cancel" {
+        stop_sleepy_event();
+        Notifier.notify(player, "Sleepy Event STOPPED across all servers.");
+    } else if act == "restart" {
+        d := duration;
+        if d <= 0 { d = SLEEPY_EVENT_DURATION_DEFAULT; }
+        start_sleepy_event(d);
+        Notifier.notify(player, "Sleepy Event RESTARTED for {d}s!");
+    } else {
+        active := is_sleepy_event_active();
+        if active {
+            rem := get_sleepy_event_remaining_seconds();
+            Notifier.notify(player, "Sleepy Event: ACTIVE - {format_float(rem, decimals=0)}s remaining. Mutation chance {SLEEPY_MUTATION_CHANCE*100}%");
+            Chat.server_send_message("Sleepy Event is ACTIVE! {format_float(rem, decimals=0)}s left - fish can be SLEEPY (Zzz)!", player);
+        } else {
+            Notifier.notify(player, "Sleepy Event: INACTIVE. Use /admin_sleepy_event start [seconds] to start across all servers.");
+        }
+    }
+} @chat_command @owner
+
+admin_sleepy :: proc(player: Player, action: string = "status", duration: int = 300) {
+    admin_sleepy_event(player, action, duration);
+} @chat_command @owner
+
+sleepy_start :: proc(player: Player, duration: int = 300) {
+    d := duration;
+    if d <= 0 { d = SLEEPY_EVENT_DURATION_DEFAULT; }
+    start_sleepy_event(d);
+    Notifier.notify(player, "Sleepy Event STARTED for {d}s across ALL servers!");
+} @chat_command @owner
+
+sleepy_stop :: proc(player: Player) {
+    stop_sleepy_event();
+    Notifier.notify(player, "Sleepy Event STOPPED.");
+} @chat_command @owner
+
+sleepy_status :: proc(player: Player) {
+    active := is_sleepy_event_active();
+    if active {
+        rem := get_sleepy_event_remaining_seconds();
+        Notifier.notify(player, "Sleepy Event: ACTIVE - {format_float(rem, decimals=0)}s left. Sleepy fish chance {SLEEPY_MUTATION_CHANCE*100}% (Zzz)");
+    } else {
+        Notifier.notify(player, "Sleepy Event: INACTIVE");
+    }
+} @chat_command @any

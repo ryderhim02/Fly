@@ -1,4 +1,5 @@
 import "core:ao"
+import "code"
 
 // Manual shore fishing and boat travel.
 Boat_Travel :: class : Component {
@@ -51,6 +52,60 @@ Fishing_Spot :: class : Component {
         // Set the shared state first so prediction and reconciliation agree.
         cooldown_until = get_time() + 2.5;
         player.fish_caught += 1;
+
+        // Sleepy mutation roll - active across all servers via Save game ints
+        was_sleepy := false;
+        if is_sleepy_event_active() {
+            if try_roll_sleepy_mutation(player) {
+                player.sleepy_fish_caught += 1;
+                player.sleepy_popup_timer = 2.5;
+                player.sleepy_popup_amount += 1;
+                was_sleepy = true;
+                player.last_fish_was_sleepy = true;
+                // Spawn Zzz letters next to the fish catch position (world-space)
+                spawn_pos := entity.world_position + v2{0, 1.0};
+                spawn_sleepy_zzz_visual(spawn_pos);
+                // Extra Zzz slightly offset for sleepy mutation stacking
+                spawn_sleepy_zzz_visual(spawn_pos + v2{0.6, 0.2});
+            } else {
+                player.last_fish_was_sleepy = false;
+            }
+        } else {
+            player.last_fish_was_sleepy = false;
+        }
+
+        // Feedback: personal popup coalescing handled in Player ao_late_update
+        if was_sleepy {
+            // Sleepy catch feedback - visual Zzz is primary; sound is optional
+            // SFX intentionally omitted to avoid missing asset warning; add your own sfx/click.wav later if desired
+        }
+    }
+
+    ao_late_update :: method(dt: float) {
+        // World-space hint above fishing spot when sleepy event is active
+        if is_sleepy_event_active() {
+            // Push world context with interpolation for smooth bob
+            UI.begin_world_space_ui(entity);
+            defer UI.end_world_space_ui();
+            UI.push_z(entity.world_position.y + 1.5);
+            defer UI.pop_z();
+
+            bob := sin(get_time() * 2.2) * 0.06;
+            p := entity.world_position + v2{0, 1.35 + bob};
+            r := Rect{p, p}.grow(0.35, 0.55, 0.35, 0.55);
+            ts := UI.default_text_settings();
+            ts.size = 0.22;
+            ts.color = v4{0.65, 0.75, 1.0, 0.85};
+            ts.outline_color = v4{0.08, 0.08, 0.18, 0.85};
+            ts.do_outline = true;
+            ts.outline_thickness = 2.0;
+            ts.halign = .CENTER;
+            ts.valign = .CENTER;
+            UI.text(r, ts, "Zzz");
+
+            // also subtle glow tint shift during sleepy
+            // (visual cue that spot can give mutation)
+        }
     }
 }
 
@@ -86,10 +141,15 @@ ao_start :: proc() {
     spawn_fishing_spot(v2{-2, 2});
     spawn_fishing_spot(v2{3, 2});
     spawn_fishing_spot(v2{8, 2});
+
+    // Sleepy event controller - ticks cross-server state via Save game ints
+    ctrl_entity := Scene.create_entity();
+    ctrl_entity.set_local_position(v2{0, 0});
+    ctrl_entity.add_component(Sleepy_Event_Controller);
 }
 
 ao_update :: proc(dt: float) {
-
+    sleepy_event_tick(dt);
 }
 
 ao_late_update :: proc(dt: float) {
@@ -99,17 +159,175 @@ ao_late_update :: proc(dt: float) {
 // Per player state
 Player :: class : Player_Base {
     fish_caught: s32 @ao_serialize;
+    sleepy_fish_caught: s32 @ao_serialize;
+    sleepy_popup_timer: float @ao_serialize;
+    sleepy_popup_amount: s32 @ao_serialize;
+    last_fish_was_sleepy: bool @ao_serialize;
 
     ao_start :: method() {
         // Basically on awake/join
     }
 
     ao_update :: method(dt: float) {
-        // Every frame
+        // Coalesced popup timer for sleepy fish
+        if sleepy_popup_timer > 0 {
+            sleepy_popup_timer -= dt;
+            if sleepy_popup_timer <= 0 {
+                sleepy_popup_timer = 0;
+                sleepy_popup_amount = 0;
+            }
+        }
     }
 
     ao_late_update :: method(dt: float) {
         // After physics runs, all UI must be rendered from here
+        if !is_local_or_server() {
+            return;
+        }
+
+        // --- Sleepy Event Banner (screen space, all servers synced via Save) ---
+        if is_sleepy_event_active() {
+            UI.push_screen_draw_context();
+            defer UI.pop_draw_context();
+
+            screen := UI.get_screen_rect();
+            // Top banner
+            banner_rect := screen.top_rect().grow_bottom(52).inset(10, 0, 10, 0);
+            // Background
+            UI.push_layer(100);
+            UI.quad(banner_rect.grow(8), core_globals.white_sprite, v4{0.13, 0.13, 0.28, 0.92});
+            UI.quad(banner_rect.grow(8).inset(2), core_globals.white_sprite, v4{0.22, 0.24, 0.55, 1});
+            UI.pop_layer();
+
+            // Text
+            ts_title := UI.default_text_settings();
+            ts_title.size = 26;
+            ts_title.color = v4{0.75, 0.82, 1.0, 1};
+            ts_title.outline_color = v4{0.05, 0.05, 0.15, 1};
+            ts_title.do_outline = true;
+            ts_title.outline_thickness = 3;
+
+            ts_sub := UI.default_text_settings();
+            ts_sub.size = 16;
+            ts_sub.color = v4{0.9, 0.92, 1.0, 1};
+            ts_sub.outline_color = v4{0.05, 0.05, 0.15, 1};
+            ts_sub.do_outline = true;
+            ts_sub.outline_thickness = 2;
+
+            rem := get_sleepy_event_remaining_seconds();
+            mins := (rem / 60).(int);
+            secs := (rem - mins.(float)*60).(int);
+            if mins < 0 { mins = 0; }
+            if secs < 0 { secs = 0; }
+
+            title_rect := banner_rect.subrect(0, 0.05, 1, 0.62);
+            sub_rect := banner_rect.subrect(0, 0.62, 1, 0.98);
+
+            // Dreamy Zzz decoration on sides
+            left_deco := banner_rect.left_rect().grow(30, 22, 30, 22).offset(14, 0);
+            right_deco := banner_rect.right_rect().grow(30, 22, 30, 22).offset(-14, 0);
+            deco_ts := UI.default_text_settings();
+            deco_ts.size = 18;
+            deco_ts.color = v4{0.7, 0.76, 1.0, 0.9};
+            deco_ts.do_outline = true;
+            deco_ts.outline_color = v4{0,0,0,0.7};
+            UI.text(left_deco, deco_ts, "Zzz");
+            UI.text(right_deco, deco_ts, "Zzz");
+
+            UI.text(title_rect, ts_title, "SLEEPY EVENT ACTIVE");
+            pct := SLEEPY_MUTATION_CHANCE * 100;
+            UI.text(sub_rect, ts_sub, "Sleepy fish: {pct}%  -  {mins}:{format_int(secs, leading_zeroes=2)} left  -  Fish show Zzz!");
+
+            // Bottom popup for newly caught sleepy fish (personal, coalesced)
+            if sleepy_popup_timer > 0 && sleepy_popup_amount > 0 {
+                t := clamp(sleepy_popup_timer / 2.5, 0, 1);
+                alpha := t;
+                rise := (1.0 - t) * 18.0;
+
+                popup_rect := screen.center_rect().grow(90, 160, 90, 160).offset(0,  110 + rise);
+                bg := popup_rect.grow(10);
+                UI.push_layer(101);
+                UI.quad(bg, core_globals.white_sprite, v4{0.18, 0.20, 0.42, alpha * 0.95});
+                UI.quad(bg.inset(2), core_globals.white_sprite, v4{0.32, 0.36, 0.70, alpha});
+                UI.pop_layer();
+
+                p_title := UI.default_text_settings();
+                p_title.size = 22;
+                p_title.color = v4{0.75, 0.85, 1.0, alpha};
+                p_title.outline_color = v4{0.05, 0.05, 0.18, alpha};
+                p_title.do_outline = true;
+
+                p_sub := UI.default_text_settings();
+                p_sub.size = 14;
+                p_sub.color = v4{1, 1, 1, alpha};
+                p_sub.outline_color = v4{0,0,0, alpha};
+                p_sub.do_outline = true;
+
+                head := popup_rect.subrect(0.05, 0.12, 0.95, 0.52);
+                foot := popup_rect.subrect(0.05, 0.52, 0.95, 0.88);
+
+                // Show Zzz letters inside popup as well
+                UI.text(head, p_title, "Zzz  SLEEPY FISH!  Zzz");
+                UI.text(foot, p_sub, "+{sleepy_popup_amount}  Total Sleepy: {sleepy_fish_caught}");
+            }
+        }
+
+        // --- Always show fishing stats (screen space) ---
+        {
+            UI.push_screen_draw_context();
+            defer UI.pop_draw_context();
+            screen := UI.get_safe_screen_rect();
+            stats_rect := screen.bottom_left_rect().grow(140, 110, 40, 0).offset(14, 14);
+            UI.push_layer(90);
+            UI.quad(stats_rect.grow(6), core_globals.white_sprite, v4{0.0, 0.0, 0.0, 0.55});
+            UI.quad(stats_rect.grow(6).inset(2), core_globals.white_sprite, v4{1,1,1,0.9});
+            UI.pop_layer();
+
+            t1 := UI.default_text_settings();
+            t1.size = 16;
+            t1.halign = .LEFT;
+            t1.valign = .CENTER;
+            t1.color = v4{0.12, 0.12, 0.12, 1};
+            t1.do_outline = false;
+
+            t2 := UI.default_text_settings();
+            t2.size = 13;
+            t2.halign = .LEFT;
+            t2.valign = .CENTER;
+            t2.color = v4{0.25, 0.28, 0.55, 1};
+            t2.do_outline = false;
+
+            top := stats_rect.subrect(0.06, 0.08, 0.94, 0.52);
+            bot := stats_rect.subrect(0.06, 0.52, 0.94, 0.92);
+
+            UI.text(top, t1, "Fish: {fish_caught}");
+            if is_sleepy_event_active() {
+                UI.text(bot, t2, "Sleepy: {sleepy_fish_caught}  Zzz");
+            } else {
+                UI.text(bot, t2, "Sleepy: {sleepy_fish_caught}");
+            }
+        }
+
+        // --- World-space Zzz above player after a sleepy catch (floats) ---
+        if sleepy_popup_timer > 0 {
+            bob := sin(get_time() * 2.0) * 0.05;
+            UI.begin_world_space_ui(entity);
+            defer UI.end_world_space_ui();
+            UI.push_z(entity.world_position.y + 1.8);
+            defer UI.pop_z();
+            // Only draw if recently got sleepy, else skip to reduce clutter
+            if sleepy_popup_amount > 0 {
+                p := entity.world_position + v2{0, 1.55 + bob};
+                r := Rect{p, p}.grow(0.4, 0.7, 0.4, 0.7);
+                ts := UI.default_text_settings();
+                ts.size = 0.28;
+                ts.color = v4{0.72, 0.80, 1.0, clamp(sleepy_popup_timer / 2.5, 0, 1)};
+                ts.outline_color = v4{0.08, 0.08, 0.18, clamp(sleepy_popup_timer / 2.5, 0, 1)};
+                ts.do_outline = true;
+                ts.outline_thickness = 2.5;
+                UI.text(r, ts, "Zzz");
+            }
+        }
     }
 
     ao_end :: method() {
