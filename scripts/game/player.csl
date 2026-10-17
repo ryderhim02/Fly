@@ -1,0 +1,47 @@
+Player :: class : Player_Base {
+    @ao_serialize fish_caught: int;
+    rod_level: int;
+    fishing_rng: u64;
+    next_cast: float;
+    reveal_until: float;
+    last_fish: int;
+    admin_open: bool;
+    catch_particles: Particle_System_Component;
+    reward_until: float;
+    reward_amount: int;
+    ao_start :: method() {
+        fish_caught = Save.get_int(this,"fish_caught",0);
+        rod_level = clamp(Save.get_int(this,"rod_level",0),0,8);
+        fishing_rng = rng_root_seed();
+        catch_particles = entity.add_component(Particle_System_Component);
+        entity.set_local_position({-6,1});
+        entity.mark_teleported();
+        for nav: component_iterator(Navmesh) { agent.set_navmesh_to_lock_to(nav); break; }
+        fishing_intro.start(this);
+    }
+    ao_late_update :: method(dt: float) {
+        if !is_local_or_server() { return; }
+        camera.follow_player = false;
+        camera.position = {0,-2};
+        camera.size = 9;
+        draw_harbor(this);
+        opts := Inventory_Draw_Options.hotbar_default();
+        opts.hotbar_item_count = 5;
+        opts.allow_drag_drop = false;
+        Items.draw_hotbar(this,default_inventory,opts);
+        if get_time() < reward_until {
+            UI.begin_world_space_ui(entity);
+            defer UI.end_world_space_ui();
+            age := 1.5-(reward_until-get_time());
+            previous := max(0.0,age-get_fixed_delta_time());
+            UI.push_interpolation_offset({0, (age-previous)*0.7});
+            defer UI.pop_interpolation_offset();
+            p := entity.world_position + v2{0,1.1+age*0.7};
+            ts := UI.default_text_settings();
+            ts.size = 0.35;
+            ts.color = {1,0.84,0.35,clamp((reward_until-get_time())*2,0,1)};
+            UI.text(Rect{p,p}.grow(0.8),ts,`+{reward_amount} Coins`);
+        }
+    }
+}
+

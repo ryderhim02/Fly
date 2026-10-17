@@ -1,0 +1,26 @@
+[
+  {
+    "id": "darker_wood_planks_7830c0.png",
+    "texture": {
+      "wrap_repeat": true,
+      "crop": [
+        5,
+        9,
+        5,
+        11
+      ]
+    }
+  },
+  {
+    "id": "sand_blurred_84b495.png",
+    "texture": {
+      "wrap_repeat": true
+    }
+  },
+  {
+    "id": "water1_ac0690.png",
+    "texture": {
+      "wrap_repeat": true
+    }
+  }
+]

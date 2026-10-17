@@ -1,0 +1,33 @@
+test_catch_and_sell :: proc() {
+    Test.teleport({-6,2});
+    Test.assert_can_interact("pier is reachable","Fishing_0");
+    Test.profile_start("catch_reveal");
+    Test.interact_with("Fishing_0");
+    Test.wait_seconds(0.2);
+    Test.assert_save_int("catch saved","fish_caught",1);
+    Test.click_button("harbor.uidoc:sell");
+    Test.assert_balance_range("sale pays correct fish range","Coins",12,1600);
+    Test.wait_frames(80);
+    Test.profile_stop();
+}
+test_admin_exclusives :: proc() {
+    Test.profile_start("admin_grants");
+    Test.run_admin_command("sanic");
+    Test.run_admin_command("dr_egg_man");
+    Test.assert_inventory_item_count("SANIC granted","","sanic",1);
+    Test.assert_inventory_item_count("DR EGG MAN granted","","dr_egg_man",1);
+    Test.assert_balance("admin fish create no coins","Coins",0);
+    Test.wait_frames(100);
+    Test.profile_stop();
+}
+test_multiplayer_load :: proc() {
+    Test.spawn_dummy_players(3);
+    Test.wait_seconds(3);
+    Test.profile_start("four_player_idle");
+    Test.assert_entity_count("four stations only","Fishing_Spot",4);
+    Test.move_to({6,2},tolerance=0.5);
+    Test.assert_can_interact("far station reachable","Fishing_3");
+    Test.interact_with("Fishing_3");
+    Test.wait_frames(100);
+    Test.profile_stop();
+}

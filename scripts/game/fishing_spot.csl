@@ -1,0 +1,26 @@
+Fishing_Spot :: class : Interactable {
+    ao_start :: method() {
+        radius = 1.7;
+        required_hold_time = 1.1;
+        prompt_offset = {0,0.75};
+        set_text("Fish");
+        set_hold_text("Reel in!");
+        set_listener(this);
+        marker := entity.add_component(Sprite_Renderer);
+        marker.set_texture(get_asset(Texture_Asset,"fish-fish1_ad41d1.png"));
+        marker.color = {0.8,1,1,0.8};
+    }
+    can_use :: method(player: Player) -> bool { return get_time() >= player.next_cast; }
+    on_interact :: method(player: Player) {
+        player.next_cast = get_time() + 1.25;
+        roll := rng_range_int(ref player.fishing_rng,1,1000);
+        bonus := player.rod_level * 6;
+        index := 0;
+        if roll <= 10 + bonus { index = 4; }
+        else if roll <= 50 + bonus * 3 { index = 3; }
+        else if roll <= 150 + bonus * 5 { index = 2; }
+        else if roll <= 400 + bonus * 6 { index = 1; }
+        give_fish(player,index);
+    }
+}
+

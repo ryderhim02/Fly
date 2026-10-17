@@ -1,0 +1,28 @@
+.screen { position: fixed; inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); font-family: AllIn; color: #f4fffa; }
+.brand { position: absolute; top: 30px; left: 36px; padding: 18px 24px; border-radius: 20px; background: #102d3bea; }
+.eyebrow { font-size: 15px; font-weight: 800; letter-spacing: 3px; color: #86dacd; }
+.title { font-size: 34px; font-weight: 900; letter-spacing: 1px; margin-top: 5px; }
+.small { font-size: 18px; color: #b1cfce; width: 230px; height: 28px; }
+.wallet { position: absolute; top: 180px; left: 36px; display: flex; align-items: center; gap: 12px; padding: 10px 22px; border-radius: 22px; background: #102d3bea; }
+.wallet img { width: 48px; height: 48px; object-fit: contain; }
+.balance { font-size: 34px; font-weight: 900; width: 190px; height: 45px; color: #ffe2a1; }
+.actions { position: absolute; right: 30px; bottom: 160px; width: 280px; display: flex; flex-direction: column; gap: 12px; padding: 18px; border-radius: 24px; background: #102d3bf0; }
+.rod { font-size: 24px; font-weight: 800; text-align: center; height: 32px; }
+button { min-height: 72px; border-radius: 16px; background: #ffda85; color: #173444; border: 2px solid #ffedc2; font-size: 24px; font-weight: 800; padding: 12px; text-align: center; }
+button:hover { background: #fff0bd; }
+button:active { background: #e9b14a; }
+.sell { background: #77e4c0; border-color: #b7ffe5; }
+.locked { min-height: 64px; border-radius: 16px; background: #294653; color: #acc4c8; font-size: 23px; padding: 14px; text-align: center; }
+.empty { color: #96b7bc; font-size: 20px; text-align: center; height: 40px; }
+.admin { min-height: 56px; font-size: 18px; background: #254d63; color: #bceeff; border-color: #3a697f; }
+.catch { position: absolute; top: 240px; left: calc(50% - 210px); width: 420px; display: flex; flex-direction: column; align-items: center; padding: 24px; border-radius: 30px; background: #102a3aef; border: 2px solid #6ccbc5; box-shadow: 0px 16px 40px #001d3444; }
+.catch-art { width: 220px; height: 150px; object-fit: contain; margin: 14px; }
+.fish-name { font-size: 35px; font-weight: 900; text-align: center; width: 380px; height: 48px; }
+.value { font-size: 20px; color: #c1e4de; height: 30px; }
+.admin-panel { position: absolute; top: 260px; left: calc(50% - 340px); width: 680px; padding: 28px; border-radius: 26px; background: #102a3aff; border: 2px solid #60bcd5; display: flex; flex-direction: column; gap: 18px; }
+.panel-title { font-size: 32px; font-weight: 900; }
+.exclusive { font-size: 20px; color: #9cc6cf; }
+.admin-row { display: flex; gap: 20px; }
+.fish-card { width: 310px; background: #1b465c; color: white; border-color: #377d96; display: flex; flex-direction: column; align-items: center; }
+.fish-card img { width: 240px; height: 170px; object-fit: contain; }
+@media (max-width: 1100px) { .actions { width: 250px; right: 20px; bottom: 190px; } .brand { left: 20px; } .wallet { left: 20px; } }

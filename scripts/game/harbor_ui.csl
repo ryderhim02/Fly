@@ -1,0 +1,67 @@
+ROD_COSTS: [8]int : {75,200,500,1200,3000,7500,18000,45000};
+ROD_NAMES: [9]string : {"Driftwood", "Copper", "Jade", "Prism", "Golden", "Astral", "Aurora", "Celestial", "Abyssal"};
+sell_catch :: proc(p: Player) {
+    total: int;
+    for item: p.default_inventory.slots() {
+        if item == null { continue; }
+        d := item.get_definition();
+        if d.#type != Fish_Definition { continue; }
+        value := d.(Fish_Definition).value;
+        if value <= 0 { continue; }
+        total += value * item.quantity;
+        Items.destroy_item_instance(item);
+    }
+    if total == 0 { return; }
+    Economy.deposit_currency(p,"Coins",total);
+    p.reward_amount = total;
+    p.reward_until = get_time()+1.5;
+    play_harbor_sound(p,true);
+}
+harbor_event :: proc(event: UIDoc_Event, userdata: Object) {
+    p := userdata.(Player);
+    if !#alive(p) { return; }
+    if event.handler == "event:sell" { sell_catch(p); }
+    if event.handler == "event:upgrade" && p.rod_level < ROD_COSTS.count {
+        price := ROD_COSTS[p.rod_level];
+        if !Economy.can_withdraw_currency(p,"Coins",price) { return; }
+        Economy.withdraw_currency(p,"Coins",price);
+        p.rod_level += 1;
+        Save.set_int(p,"rod_level",p.rod_level);
+        play_harbor_sound(p,true);
+        p.catch_particles.play(Particle_System_Desc.preset_firework());
+    }
+    if event.handler == "event:admin" && p.is_owner_or_editor() { p.admin_open = !p.admin_open; }
+    if event.handler == "event:close" { p.admin_open = false; }
+    if event.handler == "event:grant" && p.admin_open && p.is_owner_or_editor() {
+        if event.key == "sanic" { give_fish(p,5); }
+        if event.key == "egg" { give_fish(p,6); }
+    }
+}
+draw_harbor :: proc(p: Player) {
+    if !p.is_local_or_server() { return; }
+    UI.uidoc_clear_bindings();
+    UI.uidoc_bind_text("coins",`{Economy.get_balance(p,"Coins")}`);
+    UI.uidoc_bind_text("caught",`{p.fish_caught} catches`);
+    UI.uidoc_bind_text("rod",ROD_NAMES[p.rod_level]+" Rod");
+    UI.uidoc_bind_text("upgrade",p.rod_level < 8 ? `Upgrade  {ROD_COSTS[min(p.rod_level,7)]}` : "Rod mastered");
+    total: int;
+    for item: p.default_inventory.slots() {
+        if item != null && item.get_definition().#type == Fish_Definition {
+            total += item.quantity*item.get_definition().(Fish_Definition).value;
+        }
+    }
+    UI.uidoc_bind_text("sell",total > 0 ? `Sell catch  +{total}` : "Bag is empty");
+    UI.uidoc_bind_bool("can_sell",total>0);
+    UI.uidoc_bind_bool("can_upgrade",p.rod_level < 8 && Economy.get_balance(p,"Coins") >= ROD_COSTS[min(p.rod_level,7)]);
+    UI.uidoc_bind_bool("admin",p.is_owner_or_editor());
+    UI.uidoc_bind_bool("admin_open",p.admin_open);
+    UI.uidoc_bind_bool("reveal",get_time()<p.reveal_until && !p.admin_open);
+    f := FISH[clamp(p.last_fish,0,6)];
+    UI.uidoc_bind_text("fish_name",f.name);
+    UI.uidoc_bind_text("fish_icon",f.path);
+    UI.uidoc_bind_text("rarity",f.rarity);
+    UI.uidoc_bind_text("rarity_color",f.color);
+    UI.uidoc_bind_text("value",f.value > 0 ? `Worth {f.value} Coins` : "Admin exclusive · Not for sale");
+    UI.uidoc(get_asset(UIDoc_Asset,"UI/harbor.uidoc"),false,p,harbor_event);
+}
+

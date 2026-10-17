@@ -1,0 +1,71 @@
+Fish_Definition :: class : Item_Definition {
+    value: int;
+    catalog_index: int;
+}
+Fish_Entry :: struct {
+    id: string;
+    name: string;
+    path: string;
+    tier: Item_Tier;
+    value: int;
+    rarity: string;
+    color: string;
+}
+// Exactly five regular fish; exclusive entries are never in the fishing roll.
+FISH: [7]Fish_Entry : {
+    {"silverfin", "Silverfin", "fish-fish1_ad41d1.png", .COMMON, 12, "COMMON", "#bce4e4"},
+    {"leaf_perch", "Jade Perch", "Emerald_Leaf_Fish_c3d7e9.png", .RARE, 35, "RARE", "#62c9ff"},
+    {"rainbow", "Prism Ray", "rainbow_fish_a383ca.png", .EPIC, 100, "EPIC", "#cf9aff"},
+    {"sunfish", "Golden Clown", "fish-clown_fish_2253a3.png", .LEGENDARY, 400, "LEGENDARY", "#ffd06a"},
+    {"moonfish", "Astral Guardian", "Eyeless_Cyan_Fish_in_Containment_Bubble_447063.png", .MYTHIC, 1600, "MYTHIC", "#ff88b7"},
+    {"sanic", "SANIC", "generated_6ad3ee64_03a5f4.png", .MYTHIC, 0, "ADMIN EXCLUSIVE", "#64d6ff"},
+    {"dr_egg_man", "DR EGG MAN", "generated_6ad3ee64_6b31e3.png", .MYTHIC, 0, "ADMIN EXCLUSIVE", "#ff9c72"},
+};
+fish_definitions: [7]Fish_Definition;
+fishing_intro: Tutorial;
+register_fishes :: proc() {
+    for f,i: FISH {
+        d := Items.register_item_definition({f.id,f.name,get_asset(Texture_Asset,f.path),999,f.tier}, Fish_Definition);
+        d.value = f.value;
+        d.catalog_index = i;
+        fish_definitions[i] = d;
+    }
+}
+play_harbor_sound :: proc(p: Player, reward: bool) {
+    desc := SFX.default_sfx_desc();
+    desc.entity_to_follow = p.entity.id;
+    desc.specific_to_player = p;
+    desc.volume = reward ? 0.45 : 0.8;
+    desc.speed_perturb = 0.08;
+    path := reward ? "EvilNintendo_coin-coin_collect_b70e2b.wav" : "splash_558044.wav";
+    SFX.play(get_asset(SFX_Asset,path),desc);
+}
+give_fish :: proc(p: Player, index: int) -> bool {
+    if index < 0 || index >= FISH.count { return false; }
+    d := fish_definitions[index];
+    if Items.calculate_room_in_inventory_for_item(d,p.default_inventory) < 1 {
+        Notifier.notify(p,"Fish bag full. Sell your catch!");
+        return false;
+    }
+    item := Items.create_item_instance(d,1);
+    Items.move_item_to_inventory(item,p.default_inventory);
+    p.last_fish = index;
+    p.reveal_until = get_time() + 2.2;
+    p.fish_caught += 1;
+    Save.set_int(p,"fish_caught",p.fish_caught);
+    play_harbor_sound(p,false);
+    desc := Particle_System_Desc.preset_confetti();
+    desc.emission = Particle_Emission.burst(index >= 3 ? 24 : 10);
+    desc.prewarm = false;
+    desc.auto_disable_when_finished = true;
+    desc.lifetime = Particle_System_Desc.range_float(0.3,0.75);
+    desc.speed = Particle_System_Desc.range_float(1.5,3);
+    desc.color_over_lifetime = Particle_System_Desc.over_lifetime_v4(get_tier_color(FISH[index].tier), {0.5,0.9,1,0});
+    p.catch_particles.play(desc);
+    Tutorial.report(p,"harbor:catch");
+    return true;
+}
+sanic :: proc(p: Player) { give_fish(p,5); } @chat_command @owner_or_editor
+dr_egg_man :: proc(p: Player) { give_fish(p,6); } @chat_command @owner_or_editor
+admin :: proc(p: Player) { p.admin_open = true; } @chat_command @owner_or_editor
+
