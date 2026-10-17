@@ -1,0 +1,242 @@
+[
+  {
+    "label": "before-idle",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 2984,
+    "cpu_ms_per_second": 13.991,
+    "working_set_mb": 267.51
+  },
+  {
+    "label": "before-idle",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 3756,
+    "cpu_ms_per_second": 26.428,
+    "working_set_mb": 269.76
+  },
+  {
+    "label": "before-idle",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 3928,
+    "cpu_ms_per_second": 18.655,
+    "working_set_mb": 269.48
+  },
+  {
+    "label": "before-idle",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 6948,
+    "cpu_ms_per_second": 110.375,
+    "working_set_mb": 267.51
+  },
+  {
+    "label": "before-idle",
+    "sample": 1,
+    "process": "AllOutServer",
+    "pid": 3800,
+    "cpu_ms_per_second": 24.873,
+    "working_set_mb": 241.48
+  },
+  {
+    "label": "before-crowded",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 2984,
+    "cpu_ms_per_second": 17.125,
+    "working_set_mb": 270.33
+  },
+  {
+    "label": "before-crowded",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 3756,
+    "cpu_ms_per_second": 54.489,
+    "working_set_mb": 274.62
+  },
+  {
+    "label": "before-crowded",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 3928,
+    "cpu_ms_per_second": 24.909,
+    "working_set_mb": 272.21
+  },
+  {
+    "label": "before-crowded",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 6948,
+    "cpu_ms_per_second": 216.399,
+    "working_set_mb": 270.28
+  },
+  {
+    "label": "before-crowded",
+    "sample": 1,
+    "process": "AllOutServer",
+    "pid": 3800,
+    "cpu_ms_per_second": 18.682,
+    "working_set_mb": 245.9
+  },
+  {
+    "label": "before-shore",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 2984,
+    "cpu_ms_per_second": 4.672,
+    "working_set_mb": 273.74
+  },
+  {
+    "label": "before-shore",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 3756,
+    "cpu_ms_per_second": 12.458,
+    "working_set_mb": 277.68
+  },
+  {
+    "label": "before-shore",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 3928,
+    "cpu_ms_per_second": 7.786,
+    "working_set_mb": 275.82
+  },
+  {
+    "label": "before-shore",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 6948,
+    "cpu_ms_per_second": 96.552,
+    "working_set_mb": 272.81
+  },
+  {
+    "label": "before-shore",
+    "sample": 1,
+    "process": "AllOutServer",
+    "pid": 3800,
+    "cpu_ms_per_second": 15.573,
+    "working_set_mb": 247.47
+  },
+  {
+    "label": "after-idle",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 1968,
+    "cpu_ms_per_second": 32.705,
+    "working_set_mb": 273.76
+  },
+  {
+    "label": "after-idle",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 6048,
+    "cpu_ms_per_second": 32.705,
+    "working_set_mb": 267.51
+  },
+  {
+    "label": "after-idle",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 7720,
+    "cpu_ms_per_second": 18.688,
+    "working_set_mb": 267.39
+  },
+  {
+    "label": "after-idle",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 8060,
+    "cpu_ms_per_second": 21.803,
+    "working_set_mb": 273.31
+  },
+  {
+    "label": "after-idle",
+    "sample": 1,
+    "process": "AllOutServer",
+    "pid": 8132,
+    "cpu_ms_per_second": 42.049,
+    "working_set_mb": 241.14
+  },
+  {
+    "label": "after-crowded",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 1968,
+    "cpu_ms_per_second": 29.571,
+    "working_set_mb": 276.64
+  },
+  {
+    "label": "after-crowded",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 6048,
+    "cpu_ms_per_second": 32.684,
+    "working_set_mb": 270.64
+  },
+  {
+    "label": "after-crowded",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 7720,
+    "cpu_ms_per_second": 4.669,
+    "working_set_mb": 270.26
+  },
+  {
+    "label": "after-crowded",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 8060,
+    "cpu_ms_per_second": 15.564,
+    "working_set_mb": 278.43
+  },
+  {
+    "label": "after-crowded",
+    "sample": 1,
+    "process": "AllOutServer",
+    "pid": 8132,
+    "cpu_ms_per_second": 40.466,
+    "working_set_mb": 244.84
+  },
+  {
+    "label": "after-shore",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 1968,
+    "cpu_ms_per_second": 14.031,
+    "working_set_mb": 276.9
+  },
+  {
+    "label": "after-shore",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 6048,
+    "cpu_ms_per_second": 15.59,
+    "working_set_mb": 270.79
+  },
+  {
+    "label": "after-shore",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 7720,
+    "cpu_ms_per_second": 1.559,
+    "working_set_mb": 270.52
+  },
+  {
+    "label": "after-shore",
+    "sample": 1,
+    "process": "AllOutClient",
+    "pid": 8060,
+    "cpu_ms_per_second": 10.913,
+    "working_set_mb": 278.63
+  },
+  {
+    "label": "after-shore",
+    "sample": 1,
+    "process": "AllOutServer",
+    "pid": 8132,
+    "cpu_ms_per_second": 31.18,
+    "working_set_mb": 245.23
+  }
+]

@@ -1,10 +1,9 @@
 {
-    csl: true
-    projects:
-    [
-        {
-            name: "Fishing Session"
-            id: "6a4c013fb13a6795f0669cb2"
-        }
-    ]
+  "csl": true,
+  "projects": [
+    {
+      "name": "Fishing Session",
+      "id": "6ac81537f01a391b7e774f43"
+    }
+  ]
 }

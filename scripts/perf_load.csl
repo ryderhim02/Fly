@@ -1,0 +1,50 @@
+// Bounded, repeatable stress fixture. Never changes saves or player progression.
+Perf_Load :: class : Component {
+    spawned: [..]Entity;
+    expires_at: float;
+    simulated_players: int = 8;
+    next_cast: float;
+    ao_update :: method(dt: float) {
+        // Synthetic anglers exercise native proximity queries and shared cooldown
+        // contention without changing a real player's catch count or saves.
+        now := get_time();
+        if now >= next_cast && now < expires_at {
+            next_cast = now + 0.8;
+            for i: 0..<simulated_players {
+                position := v2{(i % 16).(float) * 1.25 - 9.375, 2.0};
+                spot, found := Scene.get_closest_component_in_range(position, 1.8, Fishing_Spot);
+                if found && spot.is_perf_fixture && now >= spot.cooldown_until spot.cooldown_until = now + 2.5;
+            }
+        }
+        if now >= expires_at {
+            for item: spawned { if #alive(item) item.destroy(); }
+            entity.destroy();
+        }
+    }
+}
+
+perf_test :: proc(player: Player, spots: int = 128, seconds: float = 120, anglers: int = 8) {
+    for load: component_iterator(Perf_Load) {
+        for item: load.spawned { if #alive(item) item.destroy(); }
+        load.entity.destroy();
+    }
+    if spots <= 0 {
+        Notifier.notify(player, "Performance load cleared.");
+        return;
+    }
+    count := clamp(spots, 1, 256);
+    root := Scene.create_entity();
+    load := root.add_component(Perf_Load, on_before_start=proc(p: Perf_Load) {
+        p.simulated_players = clamp(anglers, 0, 32);
+        p.expires_at = get_time() + clamp(seconds, 10.0, 600.0);
+    });
+    for i: 0..<count {
+        // Compact, repeatable full-harbor load; not random scattered objects.
+        x := (i % 16).(float) * 1.25 - 9.375;
+        y := (i / 16).(float) * 1.25 + 2.0;
+        load.spawned.append(spawn_fishing_spot({x, y}, true));
+    }
+    Notifier.notify(player, `Performance load: {count} fishing spots. /perf_test 0 clears it. Expires automatically.`);
+} @chat_command @owner_or_editor
+
+

@@ -1,0 +1,40 @@
+Fishing_Spot :: class : Interactable {
+    cooldown_until: float;
+    is_perf_fixture: bool;
+    ao_start :: method() {
+        radius = 1.8;
+        required_hold_time = 0.8;
+        this.set_text("Fish");
+        this.set_hold_text("Cast Line");
+        this.set_subtitle("Fishing Spot");
+        this.set_listener(this);
+    }
+    can_use :: method(player: Player) -> bool {
+        return get_time() >= cooldown_until;
+    }
+    on_interact :: method(player: Player) {
+        cooldown_until = get_time() + 2.5;
+        // Bound the serialized counter instead of wrapping negative on overflow.
+        if player.fish_caught < 2147483647 player.fish_caught += 1;
+    }
+}
+spawn_fishing_spot :: proc(position: v2, perf_fixture: bool = false) -> Entity {
+    spot := Scene.create_entity();
+    spot.set_local_position(position);
+    add_harbor_marker(spot, {0.15, 0.65, 1.0, 1.0});
+    spot.add_component(Fishing_Spot, on_before_start=proc(f: Fishing_Spot) {
+        f.is_perf_fixture = perf_fixture;
+    });
+    return spot;
+}
+// Static, automatically culled marker instead of a real-time dynamic light.
+// Scale the renderer, not the interactable's entity (which scales its radius).
+add_harbor_marker :: proc(target: Entity, color: v4) {
+    sprite := target.add_component(Sprite_Renderer);
+    sprite.set_texture(get_asset(Texture_Asset, "$AO/circle.png"));
+    sprite.color = color;
+    sprite.scale = {0.28, 0.28};
+    sprite.layer = 0;
+}
+
+

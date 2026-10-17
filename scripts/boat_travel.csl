@@ -1,0 +1,22 @@
+// Listener and prompt share one component; no per-frame script callback.
+Boat_Travel :: class : Interactable {
+    destination: v2 = {0, -5};
+    ao_start :: method() {
+        radius = 2.0;
+        required_hold_time = 0.8;
+        this.set_text("Sail");
+        this.set_hold_text("Board Boat");
+        this.set_subtitle("Travel to the far shore");
+        this.set_listener(this);
+    }
+    on_interact :: method(player: Player) {
+        player.entity.set_local_position(destination);
+        player.entity.mark_teleported();
+    }
+}
+spawn_boat :: proc(position: v2) {
+    boat := Scene.create_entity();
+    boat.set_local_position(position);
+    add_harbor_marker(boat, {0.1, 0.45, 1.0, 1.0});
+    boat.add_component(Boat_Travel);
+}
