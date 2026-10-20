@@ -1,0 +1,23 @@
+test_perf_harbor :: proc() {
+    Test.spawn_dummy_players(3);
+    Test.wait_seconds(5);
+    Test.run_admin_command("perf_test 256 180 32");
+    Test.assert_entity_count("full harbor", "Fishing_Spot", 260);
+    Test.teleport({0, 0});
+    Test.wait_seconds(3);
+    Test.profile_start("harbor_idle");
+    Test.wait_frames(240);
+    Test.profile_stop();
+    Test.teleport({0, 7});
+    Test.wait_seconds(3);
+    Test.profile_start("harbor_crowded");
+    Test.wait_frames(240);
+    Test.profile_stop();
+    Test.teleport({0, -5});
+    Test.wait_seconds(3);
+    Test.profile_start("harbor_far_shore");
+    Test.wait_frames(240);
+    Test.profile_stop();
+    Test.run_admin_command("perf_test 0");
+    Test.assert_entity_count("fixture cleared", "Fishing_Spot", 4);
+}

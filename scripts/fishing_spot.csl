@@ -6,29 +6,58 @@ Fishing_Spot :: class : Interactable {
         required_hold_time = 0.8;
         this.set_text("Fish");
         this.set_hold_text("Cast Line");
-        this.set_subtitle("Fishing Spot");
+        this.set_subtitle("Seasonal Catch");
         this.set_listener(this);
     }
     can_use :: method(player: Player) -> bool {
-        return get_time() >= cooldown_until;
+        // Personal cooldown: other anglers cannot steal your turn.
+        return get_time() >= player.next_fish_at && (!is_perf_fixture || get_time() >= cooldown_until);
     }
     on_interact :: method(player: Player) {
-        cooldown_until = get_time() + 2.5;
-        // Bound the serialized counter instead of wrapping negative on overflow.
+        if is_perf_fixture {
+            cooldown_until = get_time() + 2.5;
+            return;
+        }
+        if seasonal_fish.count == 0 return;
+        fish := seasonal_fish[rng_range_int(ref player.fish_rng, 0, seasonal_fish.count - 1)];
+        item := Items.create_item_instance(fish, 1);
+        merged: bool;
+        if !Items.can_move_item_to_inventory(item, player.default_inventory, ref merged) {
+            Items.destroy_item_instance(item);
+            Notifier.notify(player, "Your bag is full.");
+            return;
+        }
+        player.next_fish_at = get_time() + 2.5;
+        Items.move_item_to_inventory(item, player.default_inventory);
         if player.fish_caught < 2147483647 player.fish_caught += 1;
+        Economy.deposit_currency(player, "Coins", fish.value);
+        player.reward_until = get_time() + 1.4;
+        player.reward_icon = fish.get_icon();
+        player.reward_text = `+1 {fish.name} · +{fish.value} Coins`;
+        desc := SFX.default_sfx_desc();
+        desc.entity_to_follow = player.entity.id;
+        desc.specific_to_player = player;
+        desc.volume = 0.45;
+        desc.speed_perturb = 0.08;
+        SFX.play(catch_sound, desc);
     }
 }
 spawn_fishing_spot :: proc(position: v2, perf_fixture: bool = false) -> Entity {
     spot := Scene.create_entity();
+    spot.set_name(perf_fixture ? "Performance_Fishing_Spot" : `Fishing_Spot_{position.x.(int)}`);
     spot.set_local_position(position);
     add_harbor_marker(spot, {0.15, 0.65, 1.0, 1.0});
     spot.add_component(Fishing_Spot, on_before_start=proc(f: Fishing_Spot) {
         f.is_perf_fixture = perf_fixture;
     });
+    if !perf_fixture && seasonal_fish.count > 0 {
+        sprite := spot.get_component(Sprite_Renderer);
+        sprite.set_texture(seasonal_fish[position.x < 0 ? 0 : 1].get_icon());
+        sprite.scale = {0.9, 0.9};
+        sprite.color = {1, 1, 1, 1};
+    }
     return spot;
 }
-// Static, automatically culled marker instead of a real-time dynamic light.
-// Scale the renderer, not the interactable's entity (which scales its radius).
 add_harbor_marker :: proc(target: Entity, color: v4) {
     sprite := target.add_component(Sprite_Renderer);
     sprite.set_texture(get_asset(Texture_Asset, "$AO/circle.png"));
@@ -36,5 +65,4 @@ add_harbor_marker :: proc(target: Entity, color: v4) {
     sprite.scale = {0.28, 0.28};
     sprite.layer = 0;
 }
-
 

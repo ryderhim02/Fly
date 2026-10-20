@@ -1,0 +1,15 @@
+// A static, cullable sign; no update or synced presentation cache.
+World_Sign :: class : Component {
+    @ao_serialize label: string;
+    @ao_serialize width: float = 4.0;
+    @ao_serialize height_offset: float = 1.6;
+    ao_draw :: method(dt: float) {
+        p := entity.world_position + v2{0, height_offset};
+        if !Camera.is_visible(p, 3.0) return;
+        UI.push_world_draw_context();
+        defer UI.pop_draw_context();
+        ts := UI.default_text_settings();
+        ts.size = 0.36;
+        UI.text(Rect{p + v2{-width / 2, 0}, p + v2{width / 2, 0.8}}, ts, label);
+    }
+}

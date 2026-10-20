@@ -1,3 +1,5 @@
+> Historical report. See [2026-10-20 measurements and scope](PERFORMANCE_2026-10-20.md) for the current pass.
+
 # Performance pass
 
 ## Admin load test
@@ -52,3 +54,4 @@ join failures are fixed; no production join failure was reproduced.
 
 ## Release gate
 See RELEASE_STATUS.md: deployed crash stacks reference source absent from this workspace. Do not treat these local checks as a fix for those production crashes.
+

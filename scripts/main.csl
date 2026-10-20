@@ -1,5 +1,12 @@
 import "core:ao"
 
+ao_before_scene_load :: proc() {
+    Scene.set_player_inventory_capacity(32);
+    Scene.set_auto_save_player_inventory(true);
+    register_seasonal_fish();
+    Economy.register_currency("Coins", get_asset(Texture_Asset, "gold_coin_f9e94f.png"));
+}
+
 ao_start :: proc() {
     spawn_boat({0, 5});
     spawn_fishing_spot({-7, 2});

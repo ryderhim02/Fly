@@ -1,3 +1,34 @@
 Player :: class : Player_Base {
     fish_caught: s32 @ao_serialize;
+    next_fish_at: float;
+    fish_rng: u64;
+    reward_until: float;
+    reward_icon: Texture_Asset;
+    reward_text: string;
+
+    ao_start :: method() {
+        fish_rng = rng_root_seed() + entity.id;
+    }
+    ao_late_update :: method(dt: float) {
+        if !this.is_local_or_server() return;
+        options := Inventory_Draw_Options.hotbar_default();
+        options.hotbar_item_count = 2;
+        options.hide_bag_button = false;
+        Items.draw_hotbar(this, default_inventory, options);
+        if get_time() >= reward_until || reward_icon == null return;
+        UI.begin_world_space_ui(entity);
+        defer UI.end_world_space_ui();
+        age := clamp(1.4 - (reward_until - get_time()), 0.0, 1.4);
+        previous_age := max(0.0, age - get_fixed_delta_time());
+        p := entity.world_position + v2{0, 1.4 + age * 0.7};
+        UI.push_interpolation_offset({0, (age - previous_age) * 0.7});
+        defer UI.pop_interpolation_offset();
+        alpha := clamp((reward_until - get_time()) * 3.0, 0.0, 1.0);
+        UI.quad(Rect{p - v2{0.35, 0.35}, p + v2{0.35, 0.35}}, reward_icon, {1, 1, 1, alpha});
+        ts := UI.default_text_settings();
+        ts.size = 0.26;
+        ts.color = {1, 1, 1, alpha};
+        ts.outline_color = {0, 0, 0, alpha};
+        UI.text(Rect{p + v2{-1.8, 0.4}, p + v2{1.8, 0.85}}, ts, reward_text);
+    }
 }

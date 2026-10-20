@@ -1,0 +1,20 @@
+// New prototype catalog. No legacy catalog exists in this workspace to migrate.
+Fish_Definition :: class : Item_Definition {
+    base_value: int;
+    value: int;
+}
+seasonal_fish: [..]Fish_Definition;
+catch_sound: SFX_Asset;
+
+register_seasonal_fish :: proc() {
+    seasonal_fish.clear();
+    christmas := Items.register_item_definition({"christmas_fish", "Candy Cane Guppy", get_asset(Texture_Asset, "generated_6ad7c2c9_160405.png"), -1, .RARE}, Fish_Definition);
+    christmas.base_value = 100;
+    christmas.value = christmas.base_value * 96 / 100;
+    seasonal_fish.append(christmas);
+    halloween := Items.register_item_definition({"halloween_fish", "Pumpkinfin", get_asset(Texture_Asset, "generated_6ad7c2c9_518733.png"), -1, .RARE}, Fish_Definition);
+    halloween.base_value = 100;
+    halloween.value = halloween.base_value * 96 / 100;
+    seasonal_fish.append(halloween);
+    catch_sound = get_asset(SFX_Asset, "collect_coin_9b5b9c.wav");
+}

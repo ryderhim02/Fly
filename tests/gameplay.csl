@@ -1,0 +1,36 @@
+test_seasonal_fishing :: proc() {
+    Test.clear_player_state();
+    Test.assert_var("Christmas rarity", "seasonal_fish[0].tier", "RARE");
+    Test.assert_var("Halloween rarity", "seasonal_fish[1].tier", "RARE");
+    Test.assert_var_int("Christmas base", "seasonal_fish[0].base_value", 100);
+    Test.assert_var_int("Christmas four percent nerf", "seasonal_fish[0].value", 96);
+    Test.assert_var_int("Halloween four percent nerf", "seasonal_fish[1].value", 96);
+    Test.assert_entity_exists("taco landmark", "Taco_Coming_Soon");
+    Test.assert_component("taco teaser", "Taco_Coming_Soon", "World_Sign.label", "COMING SOON?!?!");
+    Test.teleport({-7, 2});
+    Test.assert_can_interact("fish is reachable", "Fishing_Spot_-7");
+    Test.interact_with("Fishing_Spot_-7");
+    Test.assert_component_int("catch registered", "", "Player.fish_caught", 1);
+    Test.assert_balance("debuffed catch payout", "Coins", 96);
+    Test.assert_cannot_interact("personal cooldown", "Fishing_Spot_-7");
+    Test.wait_seconds(3);
+    Test.assert_can_interact("cooldown ends", "Fishing_Spot_-7");
+    Test.interact_with("Fishing_Spot_-7");
+    Test.assert_component_int("second catch", "", "Player.fish_caught", 2);
+    Test.assert_balance("second payout", "Coins", 192);
+}
+
+test_perf_cleanup :: proc() {
+    Test.run_admin_command("perf_test 16 10 32");
+    Test.assert_entity_count("small load", "Fishing_Spot", 20);
+    Test.run_admin_command("perf_test 16 10 32");
+    Test.assert_entity_count("repeat does not stack", "Fishing_Spot", 20);
+    Test.wait_seconds(3);
+    Test.assert_component_int("one query per fixed angler", "Performance_Load", "Perf_Load.query_count", 32);
+    Test.assert_component_int_gt("synthetic casts happen", "Performance_Load", "Perf_Load.cast_count", 0);
+    Test.wait_seconds(8);
+    Test.assert_entity_count("expiry cleanup", "Fishing_Spot", 4);
+    Test.assert_entity_count("controller removed", "Perf_Load", 0);
+    Test.assert_component_int("no synthetic catch rewards", "", "Player.fish_caught", 0);
+}
+
