@@ -1,3 +1,9 @@
 Player :: class : Player_Base {
     fish_caught: s32 @ao_serialize;
+    coming_soon_open: bool;
+    coming_soon_tacos: bool;
+
+    ao_late_update :: method(dt: float) {
+        draw_coming_soon(this);
+    }
 }

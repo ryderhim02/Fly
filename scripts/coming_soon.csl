@@ -1,0 +1,30 @@
+// This is a preview only: no purchase, reward, or economy changes.
+draw_coming_soon :: proc(player: Player) {
+    if !player.is_local_or_server() { return; }
+
+    UI.uidoc_clear_bindings();
+    UI.uidoc_bind_bool("open", player.coming_soon_open);
+    UI.uidoc_bind_bool("tacos", player.coming_soon_tacos);
+    UI.uidoc(get_asset(UIDoc_Asset, "ui/coming_soon.uidoc"), player.coming_soon_open, player, on_coming_soon_event);
+}
+
+on_coming_soon_event :: proc(event: UIDoc_Event, userdata: Object) {
+    if !#alive(userdata) { return; }
+    player := userdata.(Player);
+    if event.handler == "event:soon:open" {
+        player.coming_soon_open = true;
+        player.coming_soon_tacos = false;
+        play_coming_soon_click(player);
+    }
+    if event.handler == "event:soon:close" {
+        player.coming_soon_open = false;
+        play_coming_soon_click(player);
+    }
+}
+
+play_coming_soon_click :: proc(player: Player) {
+    desc := SFX.default_sfx_desc();
+    desc.specific_to_player = player;
+    desc.volume = 0.4;
+    SFX.play(get_asset(SFX_Asset, "ui_click_0fec0e.wav"), desc);
+}

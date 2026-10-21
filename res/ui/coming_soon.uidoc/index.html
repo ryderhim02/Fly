@@ -1,0 +1,10 @@
+<div class="safe-root">
+  <button class="soon-button" id="coming-soon-button" data-on-click="event:soon:open" data-if="!open">Coming soon</button>
+  <div class="modal" data-if="open">
+    <div class="card">
+      <img class="taco" src="crispy_fish_taco_be5143.png" data-if="tacos">
+      <div class="title">Coming soon</div>
+      <button class="close" id="coming-soon-close" data-on-click="event:soon:close">Close</button>
+    </div>
+  </div>
+</div>

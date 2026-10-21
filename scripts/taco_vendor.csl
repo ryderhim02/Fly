@@ -1,0 +1,27 @@
+Taco_Vendor :: class : Interactable {
+    ao_start :: method() {
+        radius = 1.8;
+        required_hold_time = 0;
+        this.set_text("Tacos");
+        this.set_subtitle("Coming soon");
+        this.set_listener(this);
+    }
+
+    on_interact :: method(player: Player) {
+        player.coming_soon_tacos = true;
+        player.coming_soon_open = true;
+        play_coming_soon_click(player);
+    }
+
+    ao_draw :: method(dt: float) {
+        UI.push_world_draw_context();
+        defer UI.pop_draw_context();
+        ts := UI.default_text_settings();
+        ts.size = 0.25;
+        ts.color = {1, 0.82, 0.32, 1};
+        p := entity.world_position + v2{0, 1.8};
+        UI.text(Rect{p, p}.grow(0.7), ts, "Tacos");
+        p.y -= 0.3;
+        UI.text(Rect{p, p}.grow(0.7), ts, "Coming soon");
+    }
+}
