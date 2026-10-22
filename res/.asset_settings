@@ -1,0 +1,44 @@
+[
+  {
+    "id": "purple_fantasy_ground_a70edf.png",
+    "texture": {
+      "wrap_repeat": true
+    }
+  },
+  {
+    "id": "water1_ac0690.png",
+    "texture": {
+      "wrap_repeat": true,
+      "crop": [
+        1,
+        1,
+        1,
+        1
+      ]
+    }
+  },
+  {
+    "id": "sand1_c9befd.png",
+    "texture": {
+      "wrap_repeat": true,
+      "crop": [
+        1,
+        1,
+        1,
+        1
+      ]
+    }
+  },
+  {
+    "id": "woods_grass_f91087.png",
+    "texture": {
+      "wrap_repeat": true,
+      "crop": [
+        1,
+        1,
+        1,
+        1
+      ]
+    }
+  }
+]

@@ -1,0 +1,7 @@
+Fish_Item :: class : Item_Instance {
+    @ao_serialize fish_index: int;
+    @ao_serialize mutation: int;
+    @ao_serialize weight: float;
+    @ao_serialize sale_price: int;
+}
+

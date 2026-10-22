@@ -20,3 +20,4 @@ spawn_boat :: proc(position: v2) {
     add_harbor_marker(boat, {0.1, 0.45, 1.0, 1.0});
     boat.add_component(Boat_Travel);
 }
+

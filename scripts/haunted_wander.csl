@@ -1,0 +1,9 @@
+Haunted_Wander :: class : Component {
+    home: v2;
+    phase: float;
+    ao_start :: method() { home = entity.world_position; phase = home.x; }
+    ao_update :: method(dt: float) {
+        t := get_time() + phase;
+        entity.set_world_position(home + v2{sin(t * 0.6) * 0.5, cos(t * 0.8) * 0.25});
+    }
+}

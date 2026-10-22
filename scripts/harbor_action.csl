@@ -1,0 +1,28 @@
+Harbor_Action :: class : Interactable {
+    @ao_serialize action: int;
+    ao_start :: method() {
+        radius = 1.7 / max(abs(entity.world_scale.x), abs(entity.world_scale.y)); required_hold_time = 0.3;
+        labels: [6]string = {"Sell all fish", "Browse rods", "Research", "Sail to Reef", "Return to Harbor", "Enter Hollowmere"};
+        this.set_text(labels[clamp(action, 0, 5)]);
+        if action == 3 { this.set_subtitle("Tideglass rod required"); }
+        if action == 5 { this.set_subtitle("Halloween Event 2.0"); }
+        this.set_listener(this);
+    }
+    can_use :: method(p: Player) -> bool { return action != 5 || halloween_active(); }
+    on_interact :: method(p: Player) {
+        play_personal(p, "magic_sparkle_48ed48.wav", 0.2);
+        switch action {
+            case 0: { sell_fish(p); }
+            case 1: { p.menu = 1; }
+            case 2: { p.menu = 2; }
+            case 3: {
+                if p.rod_level < 2 { feedback(p, "Unlock Tideglass at the rod shop to sail."); return; }
+                p.entity.set_world_position({32, -3}); p.entity.mark_teleported(); p.agent.velocity = {0, 0};
+            }
+            case 4: { teleport_harbor(p); }
+            case 5: { p.entity.set_world_position({64, -3}); p.entity.mark_teleported(); p.agent.velocity = {0, 0}; }
+        }
+    }
+}
+
+

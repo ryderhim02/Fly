@@ -1,0 +1,41 @@
+e33810753dee6156.png
+	size: 884, 884
+	filter: Linear, Linear
+Flame 1/fire_1
+	bounds: 525, 340, 176, 304
+	offsets: 1, 2, 178, 307
+Flame 1/fire_2
+	bounds: 3, 85, 172, 313
+	offsets: 1, 1, 174, 315
+Flame 1/fire_3
+	bounds: 704, 354, 175, 290
+	offsets: 1, 1, 178, 292
+Flame 1/fire_4
+	bounds: 326, 47, 178, 299
+	offsets: 1, 1, 180, 301
+	rotate: 90
+UP_SmokeLine
+	bounds: 3, 647, 807, 232
+	offsets: 57, 42, 903, 297
+burning tree 2/Capa 978
+	bounds: 178, 87, 145, 311
+	offsets: 1, 1, 147, 313
+burning tree 2/Capa 981
+	bounds: 628, 152, 86, 190
+	offsets: 1, 1, 88, 192
+	rotate: 90
+burning tree 3/Capa 721 copia 120
+	bounds: 3, 401, 243, 338
+	offsets: 1, 1, 245, 340
+	rotate: 90
+burning tree 3/Capa 975
+	bounds: 628, 45, 104, 158
+	offsets: 1, 1, 106, 160
+	rotate: 90
+burnoing tree 1/tree 1
+	bounds: 344, 228, 178, 416
+	offsets: 1, 1, 180, 418
+burnoing tree 1/tree 13
+	bounds: 525, 241, 96, 234
+	offsets: 1, 1, 98, 237
+	rotate: 90

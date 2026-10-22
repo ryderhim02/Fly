@@ -1,0 +1,25 @@
+Cast_Effect :: class : Effect_Base {
+    effect_start :: method() {
+        set_duration(0.85);
+        if #alive(player) && player.casting_layer != null {
+            player.casting_layer.reset_to_initial_state();
+            player.animator.state_machine.set_trigger("harbor_cast");
+        }
+    }
+    effect_end :: method(interrupt: bool) {
+        if #alive(player) && player.casting_layer != null { player.casting_layer.reset_to_initial_state(); }
+    }
+}
+setup_fishing_animation :: proc(p: Player) {
+    sm := p.animator.state_machine;
+    trigger := sm.create_variable("harbor_cast", .TRIGGER);
+    layer := sm.create_layer("harbor_fishing", 5);
+    empty := layer.create_state("__CLEAR_TRACK__", true);
+    cast_state := layer.create_state("Emote/Fishing_casting_a_line", false);
+    layer.set_initial_state(empty);
+    layer.create_global_transition(cast_state, false).create_trigger_condition(trigger);
+    layer.create_transition(cast_state, empty, true);
+    p.casting_layer = layer;
+}
+
+

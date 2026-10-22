@@ -1,9 +1,36 @@
 import "core:ao"
+import "core:dropped_items"
+
+ao_before_scene_load :: proc() {
+    Scene.set_player_inventory_capacity(24);
+    Scene.set_auto_save_player_inventory(true);
+    Economy.register_currency("Coins", get_asset(Texture_Asset, "coin_5faf13.png"));
+    Economy.register_currency("Candy", get_asset(Texture_Asset, "halloween_pumpkin_reward_crate_112b41.png"));
+    Economy.register_currency("MilliZzz", get_asset(Texture_Asset, "$AO/ui/kit/Icons/large_stars/big_star_yellow.png"));
+    fish_definitions.clear();
+    for f, i: FISH {
+        tier := Item_Tier.COMMON;
+        if f.rarity == 1 { tier = .UNCOMMON; }
+        if f.rarity == 2 { tier = .RARE; }
+        if f.rarity == 3 { tier = .EPIC; }
+        if f.rarity == 4 { tier = .LEGENDARY; }
+        if f.rarity == 5 { tier = .MYTHIC; }
+        fish_definitions.append(Items.register_item_definition({`fish_{i}`, f.name, get_asset(Texture_Asset, f.icon), 1, tier}, instance_type=Fish_Item));
+    }
+    harbor_lesson = Tutorial.define("dreamtide_intro", .{
+        Tutorial_Step.event("catch", "harbor:catch", point_to=Tutorial_Target.world({-2, 2}), text="Hold to catch a fish.", complete_when=proc "intro_has_fish" (p: Player) -> bool { return p.fish_caught > 0; }),
+        Tutorial_Step.event("sell", "harbor:sell", point_to=Tutorial_Target.world({0, -5}), text="Sell your catch to the fishmonger.", complete_when=proc "intro_has_sold" (p: Player) -> bool { return p.total_sold > 0; })
+    });
+}
 
 ao_start :: proc() {
-    spawn_boat({0, 5});
     spawn_fishing_spot({-7, 2});
     spawn_fishing_spot({-2, 2});
     spawn_fishing_spot({3, 2});
     spawn_fishing_spot({8, 2});
+    for x: 0..<3 { spawn_fishing_spot({26 + x.(float) * 5, 1}, zone=1); }
+    for x: 0..<3 { spawn_fishing_spot({59 + x.(float) * 5, 0}, zone=2); }
 }
+
+
+

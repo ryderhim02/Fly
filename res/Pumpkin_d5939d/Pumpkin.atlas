@@ -1,0 +1,83 @@
+d5939de79460f482.png
+	size: 3984, 3984
+	filter: Linear, Linear
+DropShadow
+	bounds: 3183, 227, 711, 323
+Ex_Orange
+	bounds: 2813, 139, 364, 411
+Ex_Red
+	bounds: 2781, 1725, 551, 623
+	rotate: 90
+Ex_Yellow
+	bounds: 3287, 695, 251, 283
+Explosion
+	bounds: 3410, 1323, 551, 623
+ExplosionResidue
+	bounds: 1658, 11, 465, 361
+	rotate: 90
+Face
+	bounds: 3409, 984, 535, 333
+FaceGlow
+	bounds: 2781, 2700, 625, 412
+FaceGlow_Red
+	bounds: 2781, 2282, 625, 412
+GlowBG
+	bounds: 1746, 2551, 1029, 561
+GlowBG_Red
+	bounds: 1746, 1984, 1029, 561
+GroundGlow
+	bounds: 6, 3118, 1731, 858
+GroundGlow_Red
+	bounds: 1743, 3118, 1731, 858
+Shell
+	bounds: 2567, 991, 836, 728
+ShellBottom_Glow
+	bounds: 1658, 1299, 835, 376
+ShellBottom_Glow_Red
+	bounds: 1658, 917, 835, 376
+Smoke
+	bounds: 6, 34, 82, 84
+Smoke1
+	bounds: 94, 34, 82, 84
+Spiderwebs_1
+	bounds: 6, 1227, 1097, 820
+	rotate: 90
+Spiderwebs_2
+	bounds: 6, 124, 1097, 820
+	rotate: 90
+Spiderwebs_3
+	bounds: 832, 1227, 1097, 820
+	rotate: 90
+Spiderwebs_4
+	bounds: 832, 124, 1097, 820
+	rotate: 90
+Top
+	bounds: 3183, 6, 404, 215
+TopBG
+	bounds: 3412, 1952, 553, 372
+Top_Highlight
+	bounds: 3480, 3156, 820, 493
+	rotate: 90
+Top_Highlight_Red
+	bounds: 3480, 2330, 820, 493
+	rotate: 90
+UP_SmokeLine
+	bounds: 1658, 1681, 903, 297
+explosion_1_02
+	bounds: 6, 2330, 782, 429
+	rotate: 90
+explosion_1_03
+	bounds: 441, 2330, 782, 429
+	rotate: 90
+explosion_1_04
+	bounds: 876, 2330, 782, 429
+	rotate: 90
+explosion_1_05
+	bounds: 1311, 2330, 782, 429
+	rotate: 90
+explosion_1_06
+	bounds: 2499, 556, 782, 429
+explosion_1_07
+	bounds: 1658, 482, 782, 429
+explosion_1_08
+	bounds: 2025, 47, 782, 429

@@ -1,0 +1,12 @@
+Brain_Companion :: class : Component {
+    owner_id: string;
+    ghost: bool;
+    ao_update :: method(dt: float) {
+        owner: Player;
+        for p: component_iterator(Player) { if p.get_user_id() == owner_id { owner = p; break; } }
+        if !#alive(owner) { entity.destroy(); return; }
+        target := owner.entity.world_position + v2{1.0, 0.4 + sin(get_time() * 2.0) * 0.1};
+        entity.set_world_position(lerp(entity.world_position, target, clamp(dt * 5, 0, 1)));
+    }
+}
+

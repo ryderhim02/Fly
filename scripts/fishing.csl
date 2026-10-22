@@ -1,0 +1,120 @@
+burst_fx :: proc(position: v2, color: v4, big: bool = false) {
+    e := Scene.create_entity();
+    e.set_world_position(position);
+    e.queue_for_destruction(3);
+    ps := e.add_component(Particle_System_Component);
+    desc := Particle_System_Desc.preset_confetti();
+    desc.emission = Particle_Emission.burst(big ? 64 : 16);
+    desc.prewarm = false;
+    desc.auto_disable_when_finished = true;
+    desc.speed = Particle_System_Desc.range_float(big ? 2.0 : 0.5, big ? 6.0 : 2.0);
+    desc.lifetime = Particle_System_Desc.range_float(0.5, 1.5);
+    desc.size_over_lifetime = Particle_System_Desc.over_lifetime_v2({0.10, 0.10}, {0.03, 0.03});
+    desc.color_over_lifetime = Particle_System_Desc.over_lifetime_v4(color, {color.x, color.y, color.z, 0});
+    ps.play(desc);
+}
+catch_fish :: proc(p: Player, zone: int, bonus: bool = false) {
+    // Never advance RNG, pity or rewards when the bag cannot accept the catch.
+    empty := false;
+    for item: p.default_inventory.slots() { if item == null { empty = true; break; } }
+    if !empty { feedback(p, "Bag full — visit the fishmonger to sell."); return; }
+    if !bonus {
+        p.next_cast = get_time() + max(0.65, 2.5 - p.rod_level.(float) * 0.10 - p.research[1].(float) * 0.09);
+        play_personal(p, "fishing_rod_cast_b39085.wav", 0.25);
+        e := new(Cast_Effect);
+        set_active_effect(p.entity, e);
+    }
+    luck := 1.0 + (variant_count(p) / 12).(float) * 0.04 + p.rod_level.(float) * 0.18 + p.research[0].(float) * 0.12 + p.ascensions.(float) * 0.08 + (p.lantern ? 0.1 : 0.0);
+    if zone == 1 { luck *= 1.6; }
+    world := get_world_events();
+    if #alive(world) && world.active_event >= 0 {
+        luck *= world.luck;
+        if p.rod_level >= 5 { luck *= 1.3; }
+    }
+    weights: [6]float = {5500, 2600, 1200, 500, 150, 30};
+    sum: float;
+    for w, r: weights { weights[r] = w * pow(luck, r.(float) * 0.65); sum += weights[r]; }
+    roll := rng_range_float(ref p.rng, 0, sum);
+    rarity := 0;
+    for w, r: weights { roll -= w; if roll <= 0 { rarity = r; break; } }
+    if p.epic_pity >= 34 { rarity = max(rarity, 3); }
+    if p.pity >= (p.rod_level >= 8 ? 119 : 199) { rarity = 5; }
+    p.pity = rarity == 5 ? 0 : p.pity + 1;
+    p.epic_pity = rarity >= 3 ? 0 : p.epic_pity + 1;
+    index := rarity * 2 + rng_range_int(ref p.rng, 0, 1);
+    chance := 0.12 + p.research[3].(float) * 0.02 + p.harvest_rank.(float) * 0.01 + (p.rod_level >= 9 ? 0.08 : 0.0);
+    mutation := 0;
+    if rng_range_float(ref p.rng, 0, 1) < chance {
+        mutation = rng_range_int(ref p.rng, 1, p.rod_level >= 10 ? 5 : 4);
+        if zone == 2 { mutation = 3; }
+        if #alive(world) && world.active_event >= 0 { mutation = world.mutation; }
+    } else if p.rod_level >= 4 && rng_range_float(ref p.rng, 0, 1) < 0.08 { mutation = 1; }
+    weight := rng_range_float(ref p.rng, 0.65, 2.25);
+    price := max(1, (FISH[index].value.(float) * weight * MUTATION_VALUE[mutation] * (1.0 + p.rod_level.(float) * 0.35 + p.research[2].(float) * 0.08 + p.ascensions.(float) * 0.15)).(int));
+    if #alive(world) && world.active_event == 0 { price *= 2; }
+    item := Items.create_item_instance(fish_definitions[index], Fish_Item);
+    item.fish_index = index; item.mutation = mutation; item.weight = weight; item.sale_price = price;
+    will_destroy: bool;
+    if !Items.can_move_item_to_inventory(item, p.default_inventory, ref will_destroy) { Items.destroy_item_instance(item); return; }
+    Items.move_item_to_inventory(item, p.default_inventory);
+    if p.fish_caught < 2147483647 { p.fish_caught += 1; }
+    p.mastery += p.rod_level >= 6 ? 2 : 1;
+    p.contract_catches += 1;
+    if rarity >= 2 { p.contract_rare += 1; }
+    if mutation > 0 { p.contract_mutations += 1; }
+    p.last_fish = index; p.last_mutation = mutation; p.last_weight = weight; p.last_value = price; p.catch_until = get_time() + 3.5;
+    bit := 1 << mutation;
+    if (p.discoveries[index] & bit) == 0 {
+        p.discoveries[index] = p.discoveries[index] | bit;
+        Save.set_int(p, `discovery_{index}`, p.discoveries[index]);
+        reward_player(p, 25 * (rarity + 1) * (rarity + 1), "New journal discovery!");
+        burst_fx(p.entity.world_position, {0.3, 0.9, 0.85, 1}, rarity >= 4);
+        count := variant_count(p);
+        if count % 12 == 0 { reward_player(p, 2500 * (count / 12) * (count / 12), "Journal milestone! Permanent luck +4%" ); }
+    }
+    if !p.collection_reward && owned_species(p) == 12 {
+        p.collection_reward = true;
+        Save.set_int(p, "collection_reward", 1);
+        reward_player(p, 20000, "Bestiary complete! +20,000 coins");
+    }
+    for threshold, i: BRAIN_CATCHES {
+        if p.fish_caught == threshold { reward_player(p, 0, `{BRAIN_NAMES[i]} unlocked!`); burst_fx(p.entity.world_position, {1, 0.75, 0.2, 1}, true); }
+    }
+    if zone == 2 && #alive(world) {
+        candy := (rarity + 1) * (p.rod_level >= 7 ? 2 : 1);
+        Economy.deposit_currency(p, "Candy", candy);
+        if p.reward_until <= get_time() { p.reward_message = `+{candy} candy`; }
+        else { p.reward_message += ` · +{candy} candy`; }
+        p.reward_until = get_time() + 3;
+        world.add_harvest(p);
+    }
+    Save.set_int(p, "catches", p.fish_caught);
+    Save.set_int(p, "mastery", p.mastery);
+    Save.set_int(p, "pity", p.pity);
+    Save.set_int(p, "epic_pity", p.epic_pity);
+    save_contract(p);
+    Tutorial.report(p, "harbor:catch");
+    play_personal(p, "fishing_hole_appear_23649b.wav", 0.25);
+    if !bonus && p.rod_level >= 3 && rng_range_float(ref p.rng, 0, 1) < (p.rod_level >= 9 ? 0.25 : 0.12) { catch_fish(p, zone, true); }
+}
+sell_fish :: proc(p: Player) {
+    value := 0; count := 0;
+    for item: p.default_inventory.slots() {
+        if #alive(item) && item.#type == Fish_Item {
+            fish := item.(Fish_Item);
+            value += max(0, fish.sale_price) * fish.quantity;
+            count += fish.quantity;
+            Items.destroy_item_instance(fish);
+        }
+    }
+    if count == 0 { feedback(p, "Catch a fish first."); return; }
+    p.total_sold += count;
+    Save.set_int(p, "sold", p.total_sold);
+    reward_player(p, value, `+{compact(value)} coins`);
+    burst_fx(p.entity.world_position, {1, 0.8, 0.25, 1});
+    Tutorial.report(p, "harbor:sell");
+}
+
+
+
+

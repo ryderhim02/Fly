@@ -1,0 +1,36 @@
+69a34eff343a7670.png
+	size: 512, 512
+	filter: Linear, Linear
+	scale: 0.5
+images/Ripples/3
+	bounds: 6, 439, 212, 61
+images/lures/cursed_lure
+	bounds: 6, 288, 56, 58
+	rotate: 90
+images/lures/dark_lure
+	bounds: 96, 383, 50, 71
+	rotate: 90
+images/lures/double_lure
+	bounds: 224, 382, 86, 56
+images/lures/fire_lure
+	bounds: 224, 444, 56, 95
+	rotate: 90
+images/lures/grass_lure
+	bounds: 325, 417, 83, 94
+	rotate: 90
+images/lures/monster_lure
+	bounds: 407, 341, 66, 84
+	rotate: 90
+images/lures/normal_lure
+	bounds: 173, 376, 37, 57
+images/lures/overload_lure
+	bounds: 425, 413, 75, 87
+images/lures/shiny_lure
+	bounds: 6, 350, 83, 84
+	rotate: 90
+images/lures/swift_lure
+	bounds: 96, 326, 51, 70
+	rotate: 90
+images/lures/water_lure
+	bounds: 316, 349, 62, 85
+	rotate: 90

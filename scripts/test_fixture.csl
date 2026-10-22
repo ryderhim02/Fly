@@ -1,0 +1,13 @@
+// Deterministic integration-test fixture. Explicitly unavailable in published games.
+harbor_test_setup :: proc(p: Player, catches: int = 0, rod: int = 0, coins: int = 0, candy: int = 0, zzz: int = 0, pity: int = 0) {
+    if !Game.is_launched_from_editor() { return; }
+    p.fish_caught = clamp(catches, 0, 1000000).(s32);
+    p.rod_level = clamp(rod, 0, 10); p.pity = clamp(pity, 0, 199);
+    p.next_cast = 0;
+    Save.set_int(p, "catches", p.fish_caught); Save.set_int(p, "rod", p.rod_level); Save.set_int(p, "pity", p.pity);
+    update_rod_visual(p);
+    if coins > 0 { Economy.deposit_currency(p, "Coins", coins); }
+    if candy > 0 { Economy.deposit_currency(p, "Candy", candy); }
+    if zzz > 0 { Economy.deposit_currency(p, "MilliZzz", zzz * 10000); }
+}
+@chat_command @owner_or_editor

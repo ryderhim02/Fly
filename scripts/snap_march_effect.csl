@@ -1,0 +1,40 @@
+Snap_March_Effect :: class : Effect_Base {
+    giant: bool;
+    start_position: v2;
+    posed: bool;
+    snapped: bool;
+    effect_start :: method() { set_duration(12); }
+    effect_update :: method(dt: float) {
+        t := get_elapsed_time();
+        if t < 7 {
+            entity.set_world_position(start_position + v2{t * 2.3, 0});
+        } else if !posed {
+            posed = true;
+            a := entity.get_component(Spine_Animator);
+            if #alive(a) { a.set_animation("game/admin_snap", false, 0); }
+        }
+        if t >= 8 && !snapped {
+            snapped = true;
+            if giant {
+                sound := SFX.default_sfx_desc(); sound.entity_to_follow = entity.id; sound.volume = 0.8;
+                SFX.play(get_asset(SFX_Asset, "messenger_outro_finger_snap_e4b239.wav"), sound);
+                w := get_world_events();
+                if #alive(w) {
+                    kind := rng_range_int(ref w.rng, 0, 2);
+                    boost := rng_range_int(ref w.rng, 2, 8);
+                    mutation := rng_range_int(ref w.rng, 1, 5);
+                    begin_world_event(w, kind, boost.(float), mutation);
+                }
+                burst_fx(entity.world_position + v2{0, 2}, {0.9, 0.55, 1, 1}, true);
+            }
+        }
+        if t >= 9 {
+            a := entity.get_component(Spine_Animator);
+            if t < 9 + dt && #alive(a) { a.set_animation("Run_Fast", true, 0); }
+            entity.set_world_position(start_position + v2{16.1 + (t - 9) * 3, 0});
+        }
+    }
+    effect_end :: method(interrupt: bool) { entity.destroy(); }
+}
+
+

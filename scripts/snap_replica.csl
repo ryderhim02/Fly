@@ -1,0 +1,20 @@
+Snap_Replica :: class : Component {
+    owner_id: string;
+    owner_name: string;
+    giant: bool;
+    ao_draw :: method(dt: float) {
+        owner: Player;
+        for p: component_iterator(Player) { if p.get_user_id() == owner_id { owner = p; break; } }
+        if !#alive(owner) { return; }
+        UI.push_z(entity.world_position.y); defer UI.pop_z();
+        // Reuse the owner's already-customized live rig, including streamed cosmetic attachment overrides.
+        // Do not update/destroy this engine-managed instance. Performer effect supplies walk/snap poses.
+        {
+            UI.push_unlit_player_material(owner); defer UI.pop_material();
+            UI.spine(entity.world_position, owner.animator.instance, entity.world_scale);
+        }
+        ts := UI.default_text_settings(); ts.size = giant ? 0.42 : 0.25;
+        pos := entity.world_position + v2{0, giant ? 4.7 : 1.7};
+        UI.text(Rect{pos - v2{3, 0.35}, pos + v2{3, 0.35}}, ts, giant ? `{owner_name} • SNAP` : owner_name);
+    }
+}

@@ -1,0 +1,29 @@
+Haunt_Ambience :: class : Component {
+    ao_start :: method() {
+        ps := entity.add_component(Particle_System_Component);
+        desc := Particle_System_Desc.preset_smoke();
+        desc.sprite = get_asset(Texture_Asset, "Fog4_46cd5a.png");
+        desc.direction = {1, 0};
+        desc.gravity = {0, 0};
+        desc.initial_rotation_degrees = Particle_System_Desc.range_float(0, 0);
+        desc.angular_velocity_degrees = Particle_System_Desc.range_float(0, 0);
+        desc.emission = Particle_Emission.continuous(2);
+        desc.spawn_rect_size = {18, 10};
+        desc.speed = Particle_System_Desc.range_float(0.08, 0.18);
+        desc.lifetime = Particle_System_Desc.range_float(3, 6);
+        desc.size_over_lifetime = Particle_System_Desc.over_lifetime_v2({1.5, 0.4}, {3.5, 0.8});
+        desc.color_over_lifetime = Particle_System_Desc.over_lifetime_v4({0.55, 0.55, 0.8, 0.10}, {0.7, 0.5, 0.8, 0});
+        desc.prewarm = true;
+        desc.auto_disable_when_finished = false;
+        ps.layer = 1;
+        ps.play(desc);
+    }
+    ao_draw :: method(dt: float) {
+        w := get_world_events();
+        if !#alive(w) || w.active_event != 2 { return; }
+        ts := UI.default_text_settings(); ts.size = 0.36; ts.color = {1, 0.7, 0.3, 1};
+        pos := entity.world_position + v2{0, 2};
+        UI.text(Rect{pos - v2{3, 0.3}, pos + v2{3, 0.3}}, ts, `COMMUNITY HARVEST {w.harvest}/40`);
+    }
+}
+

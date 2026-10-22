@@ -1,0 +1,83 @@
+spawn_ghost_companion :: proc(p: Player) {
+    e := Scene.create_entity(); e.set_name("Harvest_Ghost_Companion"); e.set_world_position(p.entity.world_position);
+    a := e.add_component(Spine_Animator);
+    a.set_skeleton(get_asset(Spine_Asset, "ghost_07b48d/ghost.spine"));
+    a.disable_all_skins(); a.enable_skin("ghost_blue_with_outline"); a.refresh_skins(); a.set_animation("idle", true, 0); a.scale = {0.75, 0.75};
+    e.add_component(Brain_Companion, on_before_start=proc(c: Brain_Companion) { c.owner_id = p.get_user_id(); c.ghost = true; });
+}
+try_buy_rod :: proc(p: Player, level: int) {
+    if level != p.rod_level + 1 || level < 1 || level > 10 { return; }
+    r := RODS[level];
+    if p.fish_caught < r.catches { feedback(p, `Requires {r.catches} lifetime catches.`); return; }
+    if !Economy.can_withdraw_currency(p, "Coins", r.cost) { feedback(p, `Need {compact(r.cost)} coins.`); return; }
+    Economy.withdraw_currency(p, "Coins", r.cost);
+    p.rod_level = level; Save.set_int(p, "rod", level); update_rod_visual(p);
+    reward_player(p, 0, `{r.name} unlocked!`);
+    burst_fx(p.entity.world_position, {0.2, 0.95, 0.85, 1}, true);
+}
+try_research :: proc(p: Player, track: int) {
+    if track < 0 || track >= 4 || p.research[track] >= 10 { return; }
+    rank := p.research[track];
+    cost := 250 * (1 << rank);
+    zzz := (rank + 1) * 10000;
+    if !Economy.can_withdraw_currency(p, "Coins", cost) || !Economy.can_withdraw_currency(p, "MilliZzz", zzz) { feedback(p, `Need {compact(cost)} coins and {rank + 1} zzz.`); return; }
+    Economy.withdraw_currency(p, "Coins", cost); Economy.withdraw_currency(p, "MilliZzz", zzz);
+    p.research[track] += 1; Save.set_int(p, `research_{track}`, p.research[track]);
+    reward_player(p, 0, `{RESEARCH_NAMES[track]} upgraded!`);
+    burst_fx(p.entity.world_position, {0.5, 0.85, 1, 1});
+}
+contract_goal :: proc(p: Player, task: int) -> int {
+    if task == 0 { return min(60, 12 + p.contract_round * 4); }
+    if task == 1 { return min(20, 3 + p.contract_round / 3); }
+    return min(8, 1 + p.contract_round / 4);
+}
+try_claim_contract :: proc(p: Player) {
+    if p.contract_catches < contract_goal(p, 0) || p.contract_rare < contract_goal(p, 1) || p.contract_mutations < contract_goal(p, 2) { feedback(p, "Finish all three contract goals."); return; }
+    payout := min(100000, 300 * (p.contract_round + 1) * (p.contract_round + 1));
+    p.contract_round += 1; p.contract_catches = 0; p.contract_rare = 0; p.contract_mutations = 0;
+    save_contract(p);
+    reward_player(p, payout, `Contract complete! +{compact(payout)} coins`);
+    Economy.deposit_currency(p, "Candy", 5);
+    burst_fx(p.entity.world_position, {1, 0.8, 0.2, 1}, true);
+}
+mastery_goal :: proc(p: Player) -> int {
+    if p.mastery_claimed <= 15 { return 100 * (1 << p.mastery_claimed); }
+    return 3276800 * (p.mastery_claimed - 14);
+}
+try_claim_mastery :: proc(p: Player) {
+    if p.mastery < mastery_goal(p) { feedback(p, "Keep fishing to complete this mastery milestone."); return; }
+    payout := 500 * (1 << min(14, p.mastery_claimed));
+    p.mastery_claimed += 1; Save.set_int(p, "mastery_claimed", p.mastery_claimed);
+    reward_player(p, payout, "Mastery milestone complete!");
+}
+try_ascend :: proc(p: Player) {
+    cost := 1000000 * (p.ascensions + 1);
+    goal := 2500 * (p.ascensions + 1);
+    if p.rod_level != 10 || p.fish_caught < goal || !Economy.can_withdraw_currency(p, "Coins", cost) { feedback(p, `Requires Eternal, {goal} catches and {compact(cost)} coins.`); return; }
+    Economy.withdraw_currency(p, "Coins", cost);
+    p.ascensions += 1; p.rod_level = 0;
+    Save.set_int(p, "ascensions", p.ascensions); Save.set_int(p, "rod", 0); update_rod_visual(p);
+    reward_player(p, 0, "Ascended! Permanent value +15% • luck +8%");
+    burst_fx(p.entity.world_position, {1, 0.8, 0.3, 1}, true);
+}
+try_harvest_purchase :: proc(p: Player, item: int) {
+    if item == 0 && p.lantern { return; }
+    if item == 1 && p.ghost_pet { return; }
+    if item == 2 && p.harvest_rank >= 10 { return; }
+    cost := item == 0 ? 50 : (item == 1 ? 150 : 100 * (p.harvest_rank + 1));
+    if !Economy.can_withdraw_currency(p, "Candy", cost) { feedback(p, `Need {cost} candy.`); return; }
+    Economy.withdraw_currency(p, "Candy", cost);
+    if item == 0 { p.lantern = true; Save.set_int(p, "lantern", 1); }
+    if item == 1 { p.ghost_pet = true; Save.set_int(p, "ghost_pet", 1); spawn_ghost_companion(p); }
+    if item == 2 { p.harvest_rank += 1; Save.set_int(p, "harvest_rank", p.harvest_rank); }
+    reward_player(p, 0, "Harvest reward unlocked!");
+    burst_fx(p.entity.world_position, {0.8, 0.4, 1, 1});
+}
+
+
+update_rod_visual :: proc(p: Player) {
+    if p.rod_attachment != 0 { p.animator.instance.clear_attachment_sprite(p.rod_attachment); }
+    desc := Attachment_Desc.default(); desc.scale = {0.85, 0.85}; desc.offset = {0.18, 0.10}; desc.rotation_degrees = -30;
+    p.rod_attachment = p.animator.instance.add_attachment_sprite("Hand_R", get_asset(Texture_Asset, RODS[p.rod_level].icon), desc);
+}
+

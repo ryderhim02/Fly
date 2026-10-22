@@ -1,0 +1,153 @@
+ui_entry :: proc(id: string, icon: string, tag: string, name: string, detail: string, action: string, color: string = "#73ddcc", opacity: float = 1) {
+    UI.uidoc_list_item(id);
+    UI.uidoc_list_bind_text("id", id); UI.uidoc_list_bind_text("icon", icon);
+    UI.uidoc_list_bind_text("tag", tag); UI.uidoc_list_bind_text("name", name);
+    UI.uidoc_list_bind_text("detail", detail); UI.uidoc_list_bind_text("action", action);
+    UI.uidoc_list_bind_text("color", color); UI.uidoc_list_bind_float("opacity", opacity);
+}
+draw_harbor_ui :: proc(p: Player) {
+    if !p.is_local_or_server() { return; }
+    UI.uidoc_clear_bindings();
+    coins := Economy.get_balance(p, "Coins");
+    candy := Economy.get_balance(p, "Candy");
+    zzz := format_float(Economy.get_balance(p, "MilliZzz").(float) / 10000, decimals=2);
+    UI.uidoc_bind_text("coins", compact(coins));
+    UI.uidoc_bind_bool("candy_open", halloween_active() || candy > 0);
+    UI.uidoc_bind_text("candy", compact(candy));
+    UI.uidoc_bind_text("zzz", `{zzz} zzz`);
+    UI.uidoc_bind_text("balances", `Coins {compact(coins)}  ·  {zzz} zzz  ·  Candy {compact(candy)}`);
+    UI.uidoc_bind_bool("admin", can_admin(p));
+    UI.uidoc_bind_bool("panel", p.menu > 0);
+    UI.uidoc_bind_bool("catch", p.catch_until > get_time() && p.menu == 0);
+    UI.uidoc_bind_bool("feedback_open", p.feedback_until > get_time());
+    UI.uidoc_bind_text("feedback", p.feedback);
+    f := FISH[clamp(p.last_fish, 0, 11)];
+    UI.uidoc_bind_text("catch_icon", f.icon);
+    UI.uidoc_bind_text("catch_color", RARITY_COLORS[f.rarity]);
+    UI.uidoc_bind_text("catch_rarity", `{RARITIES[f.rarity]} / {MUTATIONS[clamp(p.last_mutation, 0, 5)]}`);
+    UI.uidoc_bind_text("catch_name", f.name);
+    UI.uidoc_bind_text("catch_stats", `{format_float(p.last_weight, decimals=2)} kg · {compact(p.last_value)} coins`);
+    next := min(10, p.rod_level + 1);
+    UI.uidoc_bind_text("next_rod", p.rod_level < 10 ? RODS[next].name : "Ascension awaits");
+    UI.uidoc_bind_text("next_detail", p.rod_level < 10 ? `{compact(coins)} / {compact(RODS[next].cost)} coins · {p.fish_caught}/{RODS[next].catches} catches` : `Eternal equipped · Ascension {p.ascensions}`);
+    UI.uidoc_bind_text("current_rod", `{RODS[p.rod_level].name}  /  {owned_species(p)}/12 fish  /  {variant_count(p)}/72 variants`);
+    w := get_world_events();
+    event_title := "The tide is quiet";
+    event_detail := "A new world event is on the horizon";
+    if #alive(w) {
+        if get_time() < w.snap_until && w.snap_until - get_time() > 7 {
+            event_title = "SCHLEEM SNAP"; event_detail = "An impossible visitor is crossing the harbor…";
+        } else if w.active_event >= 0 {
+            event_title = `{EVENT_NAMES[w.active_event]} · {max(0, ceil(w.event_until - get_time()).(int))}s`;
+            event_detail = `{format_float(w.luck, decimals=0)}x luck · {MUTATIONS[w.mutation]}`;
+            if w.active_event == 2 { event_detail += ` · Harvest {w.harvest}/40`; }
+        } else { event_detail = `Next event in {max(0, ceil(w.next_event - get_time()).(int))}s`; }
+    }
+    UI.uidoc_bind_text("event_title", event_title); UI.uidoc_bind_text("event_detail", event_detail);
+    titles: [8]string = {"", "The rod collection", "Make every cast count", "The living journal", "Always one more goal", "Your brainrot collection", "Halloween Event 2.0", "Admin events"};
+    subtitles: [8]string = {"", "Ten upgrades. Perks stack as your collection grows.", "Permanent upgrades powered by coins and brainrot zzz.", "One new fish in every rarity. Find all six mutations of each.", "Contracts repeat. Mastery grows. Ascensions last forever.", "Automatic catch-milestone unlocks. All baseline income reduced by 3%.", "Enter the pumpkin portal during the event. Candy never expires.", "Owner and editors only. Snap copies the activating admin's avatar."};
+    UI.uidoc_bind_text("title", titles[clamp(p.menu, 0, 7)]);
+    UI.uidoc_bind_text("subtitle", subtitles[clamp(p.menu, 0, 7)]);
+    UI.uidoc_begin_list("entries");
+    if p.menu == 1 {
+        for r, i: RODS {
+            if i == 0 { continue; }
+            owned := p.rod_level >= i;
+            status := owned ? "OWNED" : (i == p.rod_level + 1 ? "UP NEXT" : "FUTURE UPGRADE");
+            ui_entry(`rod_{i}`, r.icon, status, r.name, `{r.perk} · {r.catches} catches required`, owned ? "Unlocked" : `{compact(r.cost)} coins`, owned ? "#7fe2ba" : "#ffcf87", owned || i == p.rod_level + 1 ? 1.0 : 0.6);
+        }
+    }
+    if p.menu == 2 {
+        icons: [4]string = {"generated_6ada68c4_6b5b74.png", "generated_6ada6921_b4c5a6.png", "coin_5faf13.png", "generated_6ada6921_c9faf9.png"};
+        for name, i: RESEARCH_NAMES {
+            rank := p.research[i];
+            ui_entry(`research_{i}`, icons[i], `RANK {rank} / 10`, name, RESEARCH_DESC[i], rank == 10 ? "Mastered" : `{compact(250 * (1 << rank))} + {rank + 1} zzz`);
+        }
+    }
+    if p.menu == 3 {
+        for fish, i: FISH {
+            found := p.discoveries[i] > 0;
+            variants := "";
+            for j: 0..<6 { if (p.discoveries[i] & (1 << j)) != 0 { if variants.count > 0 { variants += " · "; } variants += MUTATIONS[j]; } }
+            ui_entry(`fish_{i}`, fish.icon, RARITIES[fish.rarity], fish.name, found ? variants : "Undiscovered · all waters, improved odds at the Reef", found ? "Discovered" : "Find me", RARITY_COLORS[fish.rarity], found ? 1.0 : 0.55);
+        }
+    }
+    if p.menu == 4 { draw_goal_entries(p); }
+    if p.menu == 5 {
+        for name, i: BRAIN_NAMES {
+            unlocked := p.fish_caught >= BRAIN_CATCHES[i];
+            rate := format_float(BRAIN_BASE[i].(float) * 0.97 / 10000, decimals=4);
+            ui_entry(`brain_{i}`, BRAIN_ICONS[i], unlocked ? "PASSIVE INCOME ACTIVE" : `{BRAIN_CATCHES[i]} LIFETIME CATCHES`, name, i == 5 ? "Base capped at 1 zzz/s; 0.970 after global debuff" : `{rate} zzz/s after 3% debuff`, unlocked ? "Collected" : `{p.fish_caught}/{BRAIN_CATCHES[i]}`, "#cfacff", unlocked ? 1.0 : 0.55);
+        }
+    }
+    if p.menu == 6 {
+        ui_entry("portal", "Halloween_Stone_Portal_with_Pumpkins_and_Candles_ad6c21.png", halloween_active() ? "PORTAL OPEN" : "WAITING FOR HALLOWEEN", "Hollowmere", "Haunted fishing · ghosts · scarecrows · community harvest", halloween_active() ? "Enter realm" : "Event only", "#e7b1ff");
+        ui_entry("harvest_0", "generated_6ada6921_c9faf9.png", "PERMANENT +10% LUCK", "Ghost Lantern", "A little light to guide every future catch", p.lantern ? "Owned" : "50 candy", "#e7b1ff");
+        ui_entry("harvest_1", "halloween_pumpkin_reward_crate_112b41.png", "ANIMATED COMPANION", "Little Boo", "A floating ghost follows you between islands", p.ghost_pet ? "Owned" : "150 candy", "#e7b1ff");
+        ui_entry("harvest_2", "generated_6ada68c4_b374c2.png", `RANK {p.harvest_rank}/10`, "Harvest Blessing", "+1% mutation chance per rank, even outside Halloween", p.harvest_rank >= 10 ? "Mastered" : `{100 * (p.harvest_rank + 1)} candy`, "#e7b1ff");
+    }
+    if p.menu == 7 && can_admin(p) {
+        ui_entry("snap", "generated_6ada6921_b861fa.png", "AVATAR PARADE + WORLD ROLL", "Snap", "Your giant replica walks, snaps, rolls an event, 2–8x luck and a mutation", "SNAP", "#d5a7ff");
+        ui_entry("halloween", "halloween_pumpkin_reward_crate_112b41.png", "TWO MINUTES / SERVER-WIDE", "Halloween Event 2.0", "Open Hollowmere and start the community harvest", "Activate", "#ffbb70");
+        ui_entry("end_event", "coin_5faf13.png", "SAFE RETURN", "End current event", "Returns everyone in Hollowmere to the harbor", "End event");
+    }
+    UI.uidoc_end_list();
+    UI.push_layer(10); defer UI.pop_layer();
+    UI.uidoc(get_asset(UIDoc_Asset, "UI/harbor.uidoc"), p.menu > 0, p, on_harbor_ui);
+}
+draw_goal_entries :: proc(p: Player) {
+    progress := `Catches {min(p.contract_catches, contract_goal(p, 0))}/{contract_goal(p, 0)} · Rare+ {min(p.contract_rare, contract_goal(p, 1))}/{contract_goal(p, 1)} · Mutated {min(p.contract_mutations, contract_goal(p, 2))}/{contract_goal(p, 2)}`;
+    ui_entry("contract", "coin_5faf13.png", `CONTRACT {p.contract_round + 1}`, "A fresh haul", progress, "Claim reward");
+    ui_entry("mastery", "generated_6ada6921_36a38e.png", "LIFETIME MASTERY", "The angler's path", `{p.mastery}/{mastery_goal(p)} mastery · Aurora+ earns double`, "Claim reward");
+    ui_entry("bestiary", "generated_6ada68c4_3e5e7e.png", `BESTIARY {owned_species(p)}/12`, "Every fish has a story", `20,000 coins for 12 species · {variant_count(p)}/72 variants · +4% luck per 12`, "Open journal");
+    ui_entry("ascend", "generated_6ada6921_033c30.png", `ASCENSION {p.ascensions}`, "Beyond the horizon", `Eternal + {2500 * (p.ascensions + 1)} catches + {compact(1000000 * (p.ascensions + 1))} coins. Resets rod only. Keeps research/collections.`, "Ascend");
+}
+on_harbor_ui :: proc(event: UIDoc_Event, userdata: Object) {
+    p := userdata.(Player);
+    if !#alive(p) { return; }
+    switch event.handler {
+        case "event:close": { p.menu = 0; }
+        case "event:rods": { p.menu = 1; }
+        case "event:research": { p.menu = 2; }
+        case "event:journal": { p.menu = 3; }
+        case "event:goals": { p.menu = 4; }
+        case "event:brainrots": { p.menu = 5; }
+        case "event:harvest": { p.menu = 6; }
+        case "event:admin": { if can_admin(p) { p.menu = 7; } }
+        case "event:home": { teleport_harbor(p); }
+        case "event:entry": { handle_content_action(p, event.key); }
+    }
+}
+handle_content_action :: proc(p: Player, key: string) {
+    if p.menu == 1 { for i: 1..10 { if key == `rod_{i}` { try_buy_rod(p, i); return; } } }
+    if p.menu == 2 { for i: 0..<4 { if key == `research_{i}` { try_research(p, i); return; } } }
+    if p.menu == 4 {
+        if key == "contract" { try_claim_contract(p); }
+        if key == "mastery" { try_claim_mastery(p); }
+        if key == "bestiary" { p.menu = 3; }
+        if key == "ascend" { try_ascend(p); }
+    }
+    if p.menu == 6 {
+        for i: 0..<3 { if key == `harvest_{i}` { try_harvest_purchase(p, i); return; } }
+        if key == "portal" && halloween_active() { p.entity.set_world_position({64, -3}); p.entity.mark_teleported(); p.agent.velocity = {0, 0}; p.menu = 0; }
+    }
+    if p.menu == 7 && can_admin(p) {
+        if key == "snap" { start_snap(p); }
+        w := get_world_events();
+        if #alive(w) {
+            if key == "halloween" { begin_world_event(w, 2, 2, 3); p.menu = 0; }
+            if key == "end_event" { end_world_event(w); }
+        }
+    }
+}
+draw_fish_badge :: proc(item: Item_Instance, rect: Rect) {
+    if !#alive(item) || item.#type != Fish_Item { return; }
+    fish := item.(Fish_Item);
+    if fish.mutation <= 0 { return; }
+    ts := UI.default_text_settings(); ts.size = 11;
+    ts.color = {0.85, 0.75, 1, 1};
+    UI.text(Rect{rect.min, {rect.max.x, rect.min.y + 18}}, ts, MUTATIONS[clamp(fish.mutation, 0, 5)]);
+}
+
+
+

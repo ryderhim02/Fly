@@ -1,0 +1,24 @@
+faf4a5ea01c23b84.png
+	size: 1024, 1024
+	filter: Linear, Linear
+Fishing_Hole/Grass1
+	bounds: 944, 681, 336, 73
+	offsets: 1, 1, 338, 75
+	rotate: 90
+Fishing_Hole/Grass2
+	bounds: 579, 903, 359, 114
+	offsets: 1, 1, 361, 116
+Fishing_Hole/Lilypads
+	bounds: 766, 767, 172, 130
+	offsets: 1, 1, 174, 132
+Fishing_Hole/Pond
+	bounds: 6, 745, 567, 272
+	offsets: 1, 1, 569, 274
+Fishing_Hole/Reed1
+	bounds: 579, 750, 147, 181
+	offsets: 1, 1, 149, 183
+	rotate: 90
+Fishing_Hole/Reed2
+	bounds: 766, 650, 111, 118
+	offsets: 1, 1, 113, 120
+	rotate: 90

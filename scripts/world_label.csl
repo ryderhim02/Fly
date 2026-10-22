@@ -1,0 +1,15 @@
+World_Label :: class : Component {
+    @ao_serialize title: string;
+    @ao_serialize subtitle: string;
+    @ao_serialize height: float = 1.6;
+    @ao_serialize tint: v4 = {1, 1, 1, 1};
+    ao_draw :: method(dt: float) {
+        pos := entity.world_position + v2{0, height};
+        ts := UI.default_text_settings(); ts.size = 0.29; ts.color = tint;
+        UI.text(Rect{pos - v2{2.3, 0.2}, pos + v2{2.3, 0.2}}, ts, title);
+        ts.size = 0.21; ts.color = {0.85, 0.95, 1, 1};
+        pos.y -= 0.34;
+        UI.text(Rect{pos - v2{2.4, 0.2}, pos + v2{2.4, 0.2}}, ts, subtitle);
+    }
+}
+

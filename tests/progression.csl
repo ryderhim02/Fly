@@ -1,0 +1,90 @@
+test_harbor_core_loop :: proc() {
+    Test.spawn_dummy_players(2);
+    Test.assert_component_int("expanded bag", "", "Player.default_inventory.capacity", 38);
+    Test.move_to({-2, 0.7}, tolerance=0.25, timeout=5);
+    Test.interact();
+    Test.assert_component_int("catch recorded", "", "Player.fish_caught", 1);
+    Test.assert_component_int_gt("fish has sell value", "", "Player.last_value", 0);
+    Test.assert_save_int("catch persisted", "catches", 1);
+    Test.move_to({0, -4}, tolerance=0.2, timeout=5);
+    Test.interact_with("Fishmonger");
+    Test.assert_component_int("fish sold", "", "Player.total_sold", 1);
+    Test.assert_slot_empty("bag cleared", "", 0);
+    Test.assert_balance_range("sale and discovery earned", "Coins", 26, 100000);
+    Test.assert_tutorial("onboarding completes", "dreamtide_intro", state="COMPLETED");
+    Test.run_admin_command("harbor_test_setup 6 0 180");
+    Test.click_button("open-rods");
+    Test.click_button("content-action#rod_1:0");
+    Test.assert_component_int("first rod purchased", "", "Player.rod_level", 1);
+    Test.assert_save_int("rod persisted", "rod", 1);
+    Test.click_button("close");
+    Test.move({0, -1}); Test.wait_seconds(3); Test.stop_moving();
+    Test.assert_component_float_range("shore collision contains player", "", "Player.entity.world_position.y", -10, 0);
+}
+
+test_halloween_and_snap :: proc() {
+    Test.run_admin_command("halloween");
+    Test.assert_entity_enabled("haunted realm opens", "Halloween_Decor", true);
+    Test.click_button("open-harvest");
+    Test.click_button("content-action#portal:0");
+    Test.assert_player_near("portal reaches realm", {64, -3}, 0.4);
+    Test.move_to({59, -1}, tolerance=0.2, timeout=5);
+    Test.interact();
+    Test.assert_balance_range("haunted catch earns candy", "Candy", 1, 6);
+    Test.assert_component_int("shared harvest advances", "World_Events", "World_Events.harvest", 1);
+    Test.click_button("home");
+    Test.assert_player_near("home button works", {0, -0.5}, 0.4);
+    Test.run_admin_command("snap");
+    Test.assert_entity_count("two replicas march", "Snap_Replica", 2);
+    Test.wait_seconds(8.5);
+    Test.assert_component_int_range("random event selected", "World_Events", "World_Events.active_event", 0, 2);
+    Test.assert_component_float_range("random luck applied", "World_Events", "World_Events.luck", 2, 8);
+    Test.assert_component_int_range("random mutation applied", "World_Events", "World_Events.mutation", 1, 5);
+    Test.wait_seconds(4);
+    Test.assert_entity_count("replicas cleaned up", "Snap_Replica", 0);
+    Test.click_button("open-admin");
+    Test.click_button("content-action#end_event:2");
+    Test.assert_entity_enabled("haunted realm closes", "Halloween_Decor", false);
+}
+
+test_late_progression :: proc() {
+    Test.run_admin_command("harbor_test_setup 2500 9 4000000 500 50 199");
+    Test.click_button("open-rods");
+    Test.scroll_widget("scroll", 20);
+    Test.click_button("content-action#rod_10:9");
+    Test.assert_component_int("Eternal purchased", "", "Player.rod_level", 10);
+    Test.click_button("tab-research");
+    Test.click_button("content-action#research_0:0");
+    Test.assert_component_int("research purchased", "", "Player.research[0]", 1);
+    Test.click_button("tab-harvest");
+    Test.click_button("content-action#harvest_0:1");
+    Test.assert_component_bool("permanent lantern", "", "Player.lantern", true);
+    Test.click_button("content-action#harvest_1:2");
+    Test.assert_entity_count("ghost companion spawned", "Brain_Companion", 1);
+    Test.click_button("tab-goals");
+    Test.click_button("content-action#ascend:3");
+    Test.assert_component_int("ascension recorded", "", "Player.ascensions", 1);
+    Test.assert_component_int("rod reset only", "", "Player.rod_level", 0);
+    Test.assert_component_int("research survives", "", "Player.research[0]", 1);
+    Test.assert_component_bool("lantern survives", "", "Player.lantern", true);
+    Test.assert_save_int("ascension persisted", "ascensions", 1);
+    Test.click_button("close");
+    Test.move_to({-2, 0.7}, tolerance=0.25, timeout=5);
+    Test.interact();
+    Test.assert_component_int_range("mythic pity produces top tier", "", "Player.last_fish", 10, 11);
+    Test.assert_component_int("pity resets", "", "Player.pity", 0);
+    Test.wait_seconds(5);
+    Test.assert_balance_range("all brainrot income debuffed", "MilliZzz", 490000, 1000000);
+}
+
+test_fresh_progression :: proc() {
+    Test.assert_component_int("new player starts at zero catches", "", "Player.fish_caught", 0);
+    Test.assert_component_int("free starter rod", "", "Player.rod_level", 0);
+    Test.assert_component_int("exact fourteen-slot expansion", "", "Player.default_inventory.capacity", 38);
+    Test.assert_balance("no debug coins", "Coins", 0);
+    Test.assert_balance("no debug candy", "Candy", 0);
+    Test.assert_balance("no debug zzz", "MilliZzz", 0);
+    Test.assert_entity_count("ten fishing locations", "Fishing_Spot", 10);
+    Test.assert_component("taco coming soon", "Taco_Kiosk", "World_Label.subtitle", "COMING SOON!");
+    Test.assert_component("basement coming soon", "Basement", "World_Label.subtitle", "COMING SOON!");
+}

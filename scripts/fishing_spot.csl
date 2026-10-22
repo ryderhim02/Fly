@@ -1,40 +1,46 @@
 Fishing_Spot :: class : Interactable {
     cooldown_until: float;
     is_perf_fixture: bool;
+    zone: int;
     ao_start :: method() {
-        radius = 1.8;
+        radius = 1.9;
         required_hold_time = 0.8;
         this.set_text("Fish");
         this.set_hold_text("Cast Line");
-        this.set_subtitle("Fishing Spot");
+        this.set_subtitle(zone == 0 ? "Harbor waters" : (zone == 1 ? "Sunken Reef • better luck" : "Hollowmere • candy catches"));
         this.set_listener(this);
     }
     can_use :: method(player: Player) -> bool {
-        return get_time() >= cooldown_until;
+        if is_perf_fixture { return get_time() >= cooldown_until; }
+        if zone == 1 && player.rod_level < 2 { return false; }
+        if zone == 2 && !halloween_active() { return false; }
+        return get_time() >= player.next_cast;
     }
     on_interact :: method(player: Player) {
-        cooldown_until = get_time() + 2.5;
-        // Bound the serialized counter instead of wrapping negative on overflow.
-        if player.fish_caught < 2147483647 player.fish_caught += 1;
+        if is_perf_fixture { cooldown_until = get_time() + 2.5; return; }
+        catch_fish(player, zone);
     }
 }
-spawn_fishing_spot :: proc(position: v2, perf_fixture: bool = false) -> Entity {
+spawn_fishing_spot :: proc(position: v2, perf_fixture: bool = false, zone: int = 0) -> Entity {
     spot := Scene.create_entity();
-    spot.set_local_position(position);
-    add_harbor_marker(spot, {0.15, 0.65, 1.0, 1.0});
-    spot.add_component(Fishing_Spot, on_before_start=proc(f: Fishing_Spot) {
-        f.is_perf_fixture = perf_fixture;
-    });
+    spot.set_name(perf_fixture ? "Perf_Fishing" : "Fishing_Pond");
+    spot.set_world_position(position);
+    if perf_fixture { add_harbor_marker(spot, {0.15, 0.65, 1, 1}); }
+    else {
+        a := spot.add_component(Spine_Animator);
+        a.set_skeleton(get_asset(Spine_Asset, "Fishing_Hole_Pond_faf4a5/Fishing_Hole_Pond.spine"));
+        a.set_animation("GARF130_fishing_hole/fishing_hole_idle", true, 0);
+        a.layer = -1;
+        a.scale = {1.25, 1.25};
+        if zone == 2 { a.color = {0.8, 0.55, 1, 1}; }
+    }
+    spot.add_component(Fishing_Spot, on_before_start=proc(f: Fishing_Spot) { f.is_perf_fixture = perf_fixture; f.zone = zone; });
     return spot;
 }
-// Static, automatically culled marker instead of a real-time dynamic light.
-// Scale the renderer, not the interactable's entity (which scales its radius).
 add_harbor_marker :: proc(target: Entity, color: v4) {
     sprite := target.add_component(Sprite_Renderer);
     sprite.set_texture(get_asset(Texture_Asset, "$AO/circle.png"));
     sprite.color = color;
     sprite.scale = {0.28, 0.28};
-    sprite.layer = 0;
 }
-
 

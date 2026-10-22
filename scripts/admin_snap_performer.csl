@@ -1,0 +1,39 @@
+Admin_Snap_Performer :: class : Effect_Base {
+    posed: bool;
+    walking_again: bool;
+    effect_start :: method() {
+        set_duration(12);
+        player.snap_layer.reset_to_initial_state();
+        player.animator.state_machine.set_bool("snap_walk", true);
+    }
+    effect_update :: method(dt: float) {
+        t := get_elapsed_time();
+        if t >= 7 && !posed {
+            posed = true;
+            player.animator.state_machine.set_bool("snap_walk", false);
+            player.animator.state_machine.set_trigger("snap_pose");
+        }
+        if t >= 9 && !walking_again { walking_again = true; player.animator.state_machine.set_bool("snap_walk", true); }
+    }
+    effect_end :: method(interrupt: bool) {
+        if #alive(player) {
+            player.animator.state_machine.set_bool("snap_walk", false);
+            player.snap_layer.reset_to_initial_state();
+        }
+    }
+}
+setup_snap_performance :: proc(p: Player) {
+    sm := p.animator.state_machine;
+    walk := sm.create_variable("snap_walk", .BOOL);
+    pose := sm.create_variable("snap_pose", .TRIGGER);
+    layer := sm.create_layer("snap_performance", 6);
+    empty := layer.create_state("__CLEAR_TRACK__", true);
+    run := layer.create_state("Run_Fast", true);
+    snap_state := layer.create_state("game/admin_snap", false);
+    layer.set_initial_state(empty);
+    layer.create_transition(empty, run, false).create_bool_condition(walk, true);
+    layer.create_transition(run, empty, false).create_bool_condition(walk, false);
+    layer.create_global_transition(snap_state, false).create_trigger_condition(pose);
+    layer.create_transition(snap_state, empty, true);
+    p.snap_layer = layer;
+}

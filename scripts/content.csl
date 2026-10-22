@@ -1,0 +1,88 @@
+Fish_Record :: struct { name: string; icon: string; rarity: int; value: int; }
+FISH: [12]Fish_Record = {
+    {"Pond Minnow", "Silver-Blue_Pond_Minnow_c6f52e.png", 0, 12},
+    {"Bubble Guppy", "generated_6ada68c4_6b5b74.png", 0, 16},
+    {"Clownfish", "fish-clown_fish_39a76f.png", 1, 25},
+    {"Lantern Perch", "generated_6ada68c4_a08c6e.png", 1, 32},
+    {"Chillfin", "fish-chill_fish_44a8f6.png", 2, 55},
+    {"Moonveil Koi", "generated_6ada68c4_b366f8.png", 2, 70},
+    {"Blobfish", "fish-blob_fish_48ce11.png", 3, 130},
+    {"Phantom Ray", "generated_6ada68c4_b374c2.png", 3, 165},
+    {"Pumpkin Angler", "Halloween_Pumpkin_Anglerfish_430b0f.png", 4, 340},
+    {"Sun King Marlin", "generated_6ada68c4_bd6a4b.png", 4, 420},
+    {"Circuit Carp", "circuit-scale_carp_fish_0802cf.png", 5, 750},
+    {"Eclipse Leviathan", "generated_6ada68c4_3e5e7e.png", 5, 900}
+};
+RARITIES: [6]string = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"};
+RARITY_COLORS: [6]string = {"#c3d5dc", "#83e3aa", "#73c5ff", "#c59aff", "#ffd06e", "#ff82b8"};
+MUTATIONS: [6]string = {"Natural", "Gilded", "Aurora", "Haunted", "Cosmic", "Eclipse"};
+MUTATION_VALUE: [6]float = {1, 2, 3, 4, 6, 10};
+Rod_Record :: struct { name: string; icon: string; cost: int; catches: int; perk: string; }
+RODS: [11]Rod_Record = {
+    {"Driftwood", "river_fishing_rod_8e50ae.png", 0, 0, "Your first adventure"},
+    {"Copper", "river_fishing_rod_8e50ae.png", 180, 6, "Faster casting"},
+    {"Tideglass", "generated_6ada6921_b4c5a6.png", 600, 18, "Reef access + rarity luck"},
+    {"Reefcaller", "generated_6ada6921_357a09.png", 1800, 45, "12% twin catch chance"},
+    {"Sunforge", "golden_fishing_rod_097891.png", 4800, 90, "More Gilded fish"},
+    {"Stormweaver", "generated_6ada6921_6c4308.png", 12500, 160, "Extra luck during events"},
+    {"Aurora", "generated_6ada6921_36a38e.png", 32000, 280, "Double mastery progress"},
+    {"Ghostline", "generated_6ada6921_c9faf9.png", 85000, 450, "Double Halloween candy"},
+    {"Harvest Reaper", "generated_6ada6921_400f06.png", 220000, 700, "Mythic pity every 120 casts"},
+    {"Voidwake", "generated_6ada6921_b861fa.png", 600000, 1050, "25% twin catch + mutation luck"},
+    {"Eternal", "generated_6ada6921_033c30.png", 1800000, 1600, "Eclipse chance + ascension"}
+};
+BRAIN_NAMES: [6]string = {"Banana Dolphin", "Chef Crab", "Croissant Chimera", "Cactus Cowboy", "Dragon Mascot", "Juice WRLD"};
+BRAIN_ICONS: [6]string = {"banana_dolphin_077a30.png", "chef_crab_106008.png", "Chimera_Cat_Fish_Deer_Croissant_0c3ee2.png", "three-headed-cactus-cowboy-brute_016b0b.png", "GT_Dragon_Mascot_0d9ccd.png", "$AO/ui/kit/Icons/large_stars/big_star_yellow.png"};
+BRAIN_CATCHES: [6]int = {25, 75, 200, 500, 1000, 2000};
+// Ten-thousandths of a zzz per second. Every baseline, including Juice WRLD's 1 zzz, is debuffed exactly 3%.
+BRAIN_BASE: [6]int = {100, 300, 700, 1600, 4000, 10000};
+RESEARCH_NAMES: [4]string = {"Baitcraft", "Swift Reel", "Merchant's Eye", "Mutation Lantern"};
+RESEARCH_DESC: [4]string = {"+12% rare-fish luck per rank", "Shorter personal casting cooldown", "+8% fish sale value per rank", "+2% mutation chance per rank"};
+fish_definitions: [..]Item_Definition;
+harbor_lesson: Tutorial;
+
+compact :: proc(value: int) -> string {
+    if value >= 1000000 { return `{format_float(value.(float) / 1000000, decimals=2)}m`; }
+    if value >= 1000 { return `{format_float(value.(float) / 1000, decimals=1)}k`; }
+    return `{value}`;
+}
+owned_species :: proc(p: Player) -> int {
+    total := 0;
+    for i: 0..<12 { if p.discoveries[i] > 0 { total += 1; } }
+    return total;
+}
+variant_count :: proc(p: Player) -> int {
+    total := 0;
+    for bits: p.discoveries { for j: 0..<6 { if (bits & (1 << j)) != 0 { total += 1; } } }
+    return total;
+}
+zzz_rate :: proc(p: Player) -> int {
+    rate := 0;
+    for v, i: BRAIN_CATCHES { if p.fish_caught >= v { rate += BRAIN_BASE[i] * 97 / 100; } }
+    return rate;
+}
+play_personal :: proc(p: Player, path: string, volume: float = 0.4) {
+    desc := SFX.default_sfx_desc();
+    desc.entity_to_follow = p.entity.id;
+    desc.specific_to_player = p;
+    desc.volume = volume;
+    desc.speed_perturb = 0.08;
+    SFX.play(get_asset(SFX_Asset, path), desc);
+}
+reward_player :: proc(p: Player, amount: int, message: string) {
+    if amount > 0 { Economy.deposit_currency(p, "Coins", amount); }
+    p.reward_message = message;
+    p.reward_until = get_time() + 3.0;
+    play_personal(p, "reward_682e78.wav", 0.25);
+}
+teleport_harbor :: proc(p: Player) {
+    p.entity.set_world_position({0, -0.5});
+    p.entity.mark_teleported();
+    p.agent.velocity = {0, 0};
+}
+
+can_admin :: proc(p: Player) -> bool {
+    // Editor sessions use a test account; published games always require native owner/editor rights.
+    return p.is_owner_or_editor() || Game.is_launched_from_editor();
+}
+

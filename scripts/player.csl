@@ -1,3 +1,136 @@
 Player :: class : Player_Base {
     fish_caught: s32 @ao_serialize;
+    total_sold: int;
+    rod_level: int;
+    ascensions: int;
+    research: [4]int;
+    discoveries: [12]int;
+    mastery: int;
+    mastery_claimed: int;
+    contract_round: int;
+    contract_catches: int;
+    contract_rare: int;
+    contract_mutations: int;
+    pity: int;
+    epic_pity: int;
+    harvest_rank: int;
+    ghost_pet: bool;
+    lantern: bool;
+    collection_reward: bool;
+    next_cast: float;
+    next_income: float;
+    rng: u64;
+    menu: int;
+    feedback: string;
+    feedback_until: float;
+    reward_message: string;
+    reward_until: float;
+    last_fish: int;
+    last_mutation: int;
+    last_weight: float;
+    last_value: int;
+    catch_until: float;
+    reward_interp: Position_Interpolation_Helper;
+    casting_layer: State_Machine_Layer;
+    snap_layer: State_Machine_Layer;
+    rod_attachment: u64;
+
+    ao_start :: method() {
+        if Save.get_int(this, "bag_expansion_14_v1", 0) == 0 {
+            Items.set_capacity(default_inventory, default_inventory.capacity + 14);
+            Save.set_int(this, "bag_expansion_14_v1", 1);
+        }
+        fish_caught = clamp(Save.get_int(this, "catches", fish_caught), 0, 2147483647).(s32);
+        rod_level = clamp(Save.get_int(this, "rod", 0), 0, 10);
+        total_sold = Save.get_int(this, "sold", 0);
+        mastery = Save.get_int(this, "mastery", 0);
+        mastery_claimed = Save.get_int(this, "mastery_claimed", 0);
+        ascensions = clamp(Save.get_int(this, "ascensions", 0), 0, 100);
+        harvest_rank = clamp(Save.get_int(this, "harvest_rank", 0), 0, 10);
+        ghost_pet = Save.get_int(this, "ghost_pet", 0) == 1;
+        lantern = Save.get_int(this, "lantern", 0) == 1;
+        collection_reward = Save.get_int(this, "collection_reward", 0) == 1;
+        contract_round = Save.get_int(this, "contract_round", 0);
+        contract_catches = Save.get_int(this, "contract_catches", 0);
+        contract_rare = Save.get_int(this, "contract_rare", 0);
+        contract_mutations = Save.get_int(this, "contract_mutations", 0);
+        pity = Save.get_int(this, "pity", 0);
+        epic_pity = Save.get_int(this, "epic_pity", 0);
+        for i: 0..<4 { research[i] = clamp(Save.get_int(this, `research_{i}`, 0), 0, 10); }
+        for i: 0..<12 { discoveries[i] = Save.get_int(this, `discovery_{i}`, 0); }
+        rng = rng_root_seed() + entity.id;
+        next_income = get_time() + 5;
+        entity.set_world_position({0, -0.5});
+        entity.mark_teleported();
+        setup_fishing_animation(this);
+        setup_snap_performance(this);
+        update_rod_visual(this);
+        harbor_lesson.start(this);
+        if ghost_pet { spawn_ghost_companion(this); }
+    }
+    ao_can_use_interactable :: method(i: Interactable) -> bool {
+        return menu == 0 && !has_effect(entity, Admin_Snap_Performer);
+    }
+    ao_update :: method(dt: float) {
+        if menu > 0 {
+            if !this.has_disable_movement_input_reason("harbor_menu") { this.add_disable_movement_input_reason("harbor_menu"); }
+            if !this.has_joystick_disable_reason("harbor_menu") { this.add_joystick_disable_reason("harbor_menu"); }
+        } else {
+            if this.has_disable_movement_input_reason("harbor_menu") { this.remove_disable_movement_input_reason("harbor_menu"); }
+            if this.has_joystick_disable_reason("harbor_menu") { this.remove_joystick_disable_reason("harbor_menu"); }
+        }
+        if get_time() >= next_income {
+            next_income = get_time() + 5;
+            rate := zzz_rate(this);
+            if rate > 0 {
+                Economy.deposit_currency(this, "MilliZzz", rate * 5);
+                if reward_until <= get_time() { reward_message = `+{format_float(rate.(float) * 5 / 10000, decimals=3)} zzz`; reward_until = get_time() + 1.5; }
+                play_personal(this, "magic_sparkle_48ed48.wav", 0.08);
+            }
+        }
+    }
+    ao_late_update :: method(dt: float) {
+        if !this.is_local_or_server() { return; }
+        camera.size = 8.3;
+        draw_harbor_ui(this);
+        options := Inventory_Draw_Options.hotbar_default();
+        options.hotbar_item_count = 6;
+        options.enable_use_from_hotbar = false;
+        options.on_after_draw = draw_fish_badge;
+        if menu == 0 {
+            result := Items.draw_hotbar(this, default_inventory, options);
+            dropped: Dropped_Item;
+            if Dropped_Item.handle_dropped_item(result, entity.world_position, ref dropped) { play_personal(this, "magic_sparkle_48ed48.wav", 0.2); }
+        }
+        if reward_until > get_time() {
+            UI.begin_world_space_ui(entity);
+            defer UI.end_world_space_ui();
+            age := 3.0 - (reward_until - get_time());
+            rise := v2{0, age * 0.35};
+            UI.push_interpolation_offset(reward_interp.update(rise));
+            defer UI.pop_interpolation_offset();
+            ts := UI.default_text_settings();
+            ts.size = 0.32;
+            ts.color = {1, 0.86, 0.4, clamp((reward_until - get_time()) * 2, 0, 1)};
+            pos := entity.world_position + v2{0, 1.4} + rise;
+            UI.text(Rect{pos - v2{3, 0.25}, pos + v2{3, 0.25}}, ts, reward_message);
+        }
+    }
 }
+
+save_contract :: proc(p: Player) {
+    Save.set_int(p, "contract_round", p.contract_round);
+    Save.set_int(p, "contract_catches", p.contract_catches);
+    Save.set_int(p, "contract_rare", p.contract_rare);
+    Save.set_int(p, "contract_mutations", p.contract_mutations);
+}
+feedback :: proc(p: Player, message: string) { p.feedback = message; p.feedback_until = get_time() + 4; }
+
+
+
+
+
+
+
+
+

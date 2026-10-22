@@ -1,0 +1,35 @@
+<div class="screen">
+  <div class="brand"><div class="eyebrow">DREAMTIDE</div><div class="brand-title">The next great catch.</div></div>
+  <div class="wallet"><img src="coin_5faf13.png"><div class="money" data-text-reserve="999.99m">{{coins}}</div><div class="small" data-text-reserve="9999.99 zzz">{{zzz}}</div><img data-if="candy_open" src="halloween_pumpkin_reward_crate_112b41.png"><div data-if="candy_open" class="small" data-text-reserve="999.9k">{{candy}}</div></div>
+  <div class="event-banner"><div class="event-dot"></div><div><div class="event-title" data-text-reserve="Halloween Event 2.0 • 120s">{{event_title}}</div><div class="event-detail" data-text-reserve="8x luck · Eclipse · Harvest 40/40">{{event_detail}}</div></div></div>
+  <div class="tools">
+    <button id="rods" data-key="open-rods" data-on-click="event:rods"><img src="generated_6ada6921_033c30.png"><div>RODS</div></button>
+    <button id="journal" data-key="open-journal" data-on-click="event:journal"><img src="generated_6ada68c4_b366f8.png"><div>JOURNAL</div></button>
+    <button id="goals" data-key="open-goals" data-on-click="event:goals"><img src="$AO/ui/kit/Icons/large_stars/big_star_yellow.png"><div>GOALS</div></button>
+    <button id="harvest" data-key="open-harvest" data-on-click="event:harvest"><img src="halloween_pumpkin_reward_crate_112b41.png"><div>HARVEST</div></button>
+    <button data-if="admin" data-key="open-admin" data-on-click="event:admin"><div class="snap-icon">SNAP</div><div>ADMIN</div></button>
+  </div>
+  <button class="home" data-key="home" data-on-click="event:home">Harbor</button>
+  <div class="next-goal"><div class="eyebrow">NEXT ROD</div><div class="next-name" data-text-reserve="Ascension awaits">{{next_rod}}</div><div class="small" data-text-reserve="999.9k / 999.9k coins · 99999/99999 catches">{{next_detail}}</div><div class="current-rod" data-text-reserve="Harvest Reaper / 12/12 fish / 72/72 variants">{{current_rod}}</div></div>
+  <div class="reveal" data-if="catch"><div class="eyebrow" data-text-reserve="Legendary / Haunted" data-style-color="catch_color">{{catch_rarity}}</div><img src="{{catch_icon}}"><div class="reveal-name" data-text-reserve="Eclipse Leviathan">{{catch_name}}</div><div class="small" data-text-reserve="2.25 kg · 999.99m coins">{{catch_stats}}</div></div>
+  <div class="feedback" data-text-reserve="Requires Eternal, 100000 catches and 100.00m coins." data-if="feedback_open">{{feedback}}</div>
+  <div class="modal-shade" data-if="panel">
+    <div class="modal">
+      <div class="heading"><div><div class="eyebrow">DREAMTIDE / PROGRESSION</div><div class="panel-title" data-text-reserve="Your brainrot collection">{{title}}</div><div class="panel-subtitle" data-text-reserve="Ten upgrades. Perks stack as your collection grows.">{{subtitle}}</div></div><button class="close" data-key="close" data-on-click="event:close">×</button></div>
+      <div class="tabs">
+        <button data-key="tab-rods" data-on-click="event:rods">Rods</button><button data-key="tab-research" data-on-click="event:research">Research</button><button data-key="tab-journal" data-on-click="event:journal">Journal</button><button data-key="tab-goals" data-on-click="event:goals">Goals</button><button data-key="tab-brainrots" data-on-click="event:brainrots">Brainrots</button><button data-key="tab-harvest" data-on-click="event:harvest">Harvest</button><button data-if="admin" data-key="tab-admin" data-on-click="event:admin">Admin</button>
+      </div>
+      <div class="list">
+        <div class="card" data-for="entry in entries" data-for-key="entry.id" data-style-opacity="entry.opacity">
+          <div class="art"><img src="{{entry.icon}}"></div>
+          <div class="card-copy"><div class="card-tag" data-text-reserve="PASSIVE INCOME ACTIVE" data-style-color="entry.color">{{entry.tag}}</div><div class="card-name" data-text-reserve="Eclipse Leviathan">{{entry.name}}</div><div class="card-detail" data-text-reserve="Eternal + 100000 catches + 100.0m coins. Resets rod only. Keeps research/collections.">{{entry.detail}}</div></div>
+          <button class="card-action" data-text-reserve="999.9k + 10 zzz" data-key="content-action" data-on-click="event:entry">{{entry.action}}</button>
+        </div>
+      </div>
+      <div class="panel-footer" data-text-reserve="Coins 999.99m · 9999.99 zzz · Candy 999.99m">{{balances}}</div>
+    </div>
+  </div>
+</div>
+
+
+
